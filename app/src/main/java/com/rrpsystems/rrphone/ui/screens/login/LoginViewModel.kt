@@ -25,7 +25,10 @@ class LoginViewModel : ViewModel() {
     private val _loginState = mutableStateOf<LoginState>(LoginState.Idle)
     val loginState: State<LoginState> = _loginState
 
-    fun configureSipAccount(domain: String, extension: String, pass: String, transport: String) {
+    fun configureSipAccount(
+        domain: String, extension: String, pass: String, transport: String,
+        pushEnabled: Boolean, outboundProxy: String,
+    ) {
         if (domain.isBlank() || extension.isBlank() || pass.isBlank()) {
             _loginState.value = LoginState.Error("Preencha todos os campos.")
             return
@@ -36,6 +39,8 @@ class LoginViewModel : ViewModel() {
                 password = pass.trim(),
                 domain = domain.trim(),
                 transport = transport,
+                pushEnabled = pushEnabled,
+                outboundProxy = outboundProxy.trim(),
             )
         )
     }

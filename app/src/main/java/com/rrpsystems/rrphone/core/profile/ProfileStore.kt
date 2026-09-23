@@ -29,6 +29,8 @@ object ProfileStore {
             .put("transport", profile.transport)
             .put("dtmfMethod", profile.dtmfMethod)
             .put("contactsUrl", profile.contactsUrl)
+            .put("push", profile.pushEnabled)
+            .put("outboundProxy", profile.outboundProxy)
             .put("codecs", JSONArray(profile.codecs))
 
         val box = ProfileCipher.seal(account.toString().toByteArray(Charsets.UTF_8), passphrase)
@@ -88,6 +90,10 @@ object ProfileStore {
             transport = account.optString("transport").ifBlank { "udp" },
             dtmfMethod = account.optString("dtmfMethod").ifBlank { "rfc2833" },
             contactsUrl = account.optString("contactsUrl"),
+            // Sem a chave (arquivo do desktop, ou anterior a ela): push ligado,
+            // que é o que um celular quer. O proxy próprio só vale com push desligado.
+            pushEnabled = account.optBoolean("push", true),
+            outboundProxy = account.optString("outboundProxy"),
             codecs = codecs,
         )
     }

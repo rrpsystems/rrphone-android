@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.rrpsystems.rrphone.ui.components.rememberProfileImporter
 import com.rrpsystems.rrphone.ui.theme.Rrp
+import com.rrpsystems.rrphone.ui.screens.settings.PushProxyFields
 import com.rrpsystems.rrphone.ui.screens.settings.TransportSelector
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -38,6 +39,8 @@ fun LoginScreen(
     var extension by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var transport by remember { mutableStateOf("udp") }
+    var pushEnabled by remember { mutableStateOf(true) }
+    var outboundProxy by remember { mutableStateOf("") }
     val importProfile = rememberProfileImporter(
         onImported = { viewModel.applyProfile(it) },
         onError = { viewModel.showError(it) },
@@ -145,10 +148,16 @@ fun LoginScreen(
 
                 TransportSelector(transport) { transport = it }
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(8.dp))
+                PushProxyFields(
+                    pushEnabled = pushEnabled, onPushChange = { pushEnabled = it },
+                    proxy = outboundProxy, onProxyChange = { outboundProxy = it },
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
 
                 Button(
-                    onClick = { viewModel.configureSipAccount(domain, extension, password, transport) },
+                    onClick = { viewModel.configureSipAccount(domain, extension, password, transport, pushEnabled, outboundProxy) },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(50.dp),

@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -33,15 +35,43 @@ android {
         applicationId = "com.rrpsystems.rrphone"
         minSdk = 28
         targetSdk = 36
+        // versionCode sobe a cada envio ao Play (o Play recusa repetido);
+        // versionName é o que o usuário vê.
         versionCode = 1
-        versionName = "1.0"
+        versionName = "1.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "RRP_PROFILE_KEY_HEX", "\"$profileKeyHex\"")
+        // O Flexisip da RRP, usado quando o push está ligado. É o único servidor
+        // que consegue acordar este app: o push sai do projeto Firebase cujo
+        // google-services.json vai dentro do APK. Um nome, não um IP, para o
+        // servidor poder mudar só pelo DNS. Outro valor: -Prrp.pushProxy=...
+        val pushProxy = (project.findProperty("rrp.pushProxy") as String?) ?: "push.rrpsystems.com.br"
+        buildConfigField("String", "RRP_PUSH_PROXY", "\"$pushProxy\"")
+    }
+
+    // Chave de upload do Play, fora do repositório: keystore.properties na raiz
+    // do projeto (storeFile, storePassword, keyAlias, keyPassword). Sem o
+    // arquivo, o release sai sem assinatura — serve para testar o build, não
+    // para enviar. Ver README, "Publicando no Play".
+    val keystoreProps = Properties().apply {
+        val f = rootProject.file("keystore.properties")
+        if (f.isFile) f.inputStream().use { load(it) }
+    }
+    signingConfigs {
+        if (keystoreProps.getProperty("storeFile") != null) {
+            create("upload") {
+                storeFile = rootProject.file(keystoreProps.getProperty("storeFile"))
+                storePassword = keystoreProps.getProperty("storePassword")
+                keyAlias = keystoreProps.getProperty("keyAlias")
+                keyPassword = keystoreProps.getProperty("keyPassword")
+            }
+        }
     }
 
     buildTypes {
         release {
+            signingConfigs.findByName("upload")?.let { signingConfig = it }
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -98,4 +128,9 @@ dependencies {
     
     // Navigation Compose
     implementation(libs.androidx.navigation.compose)
+
+    // O Firebase traz um androidx.fragment antigo, com o qual
+    // registerForActivityResult (pedidos de permissão) pode não entregar o
+    // resultado. Fixa uma versão atual.
+    implementation(libs.androidx.fragment.ktx)
 }

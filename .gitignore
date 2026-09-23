@@ -21,3 +21,8 @@ app/google-services.json
 
 # Configurações locais do Android Studio.
 /.idea/
+
+# Chave de upload do Play e suas senhas: nunca no repositório.
+keystore.properties
+*.jks
+*.keystore

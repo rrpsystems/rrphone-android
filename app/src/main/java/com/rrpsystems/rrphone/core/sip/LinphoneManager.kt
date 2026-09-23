@@ -148,6 +148,23 @@ object LinphoneManager {
         // processo morto somem logo, em vez de acumular até o PBX responder 403.
         params.expires = 300
 
+        // Proxy de saída como rota, não setOutboundProxyEnabled: aquele trata o
+        // próprio registrador como proxy; aqui o proxy (Flexisip) é um salto à
+        // parte na frente do PBX, e o REGISTER continua endereçado ao domínio.
+        val proxyUri = com.rrpsystems.rrphone.core.settings.normalizeProxyUri(profile.effectiveProxy)
+        if (proxyUri.isNotEmpty()) {
+            val route = factory.createAddress(proxyUri)
+            if (route == null) {
+                _registration.value = Registration.Failed("Proxy de saída inválido")
+                return
+            }
+            params.setRoutesAddresses(arrayOf(route))
+            Log.i(TAG, "Proxy de saída: $proxyUri")
+        }
+        // Os parâmetros de push (pn-prid, pn-provider...) só vão no REGISTER com
+        // o push ligado: sem o Flexisip no caminho, ninguém os usaria.
+        params.pushNotificationAllowed = profile.pushEnabled
+
         val acc = c.createAccount(params)
         c.addAccount(acc)
         c.defaultAccount = acc
@@ -161,7 +178,8 @@ object LinphoneManager {
         setDtmfMethod(profile.dtmfMethod)
         val codecs = profile.codecs.mapNotNull { Codecs.findByName(it) }
         if (codecs.isNotEmpty()) setAudioCodecsOrder(codecs)
-        Log.i(TAG, "Conta configurada: ${profile.username}@${profile.domain} via ${profile.transport}")
+        Log.i(TAG, "Conta configurada: ${profile.username}@${profile.domain} via ${profile.transport}" +
+            (if (proxyUri.isNotEmpty()) " | proxy $proxyUri" else "") + " | push: ${profile.pushEnabled}")
     }
 
     fun clearAccount() {

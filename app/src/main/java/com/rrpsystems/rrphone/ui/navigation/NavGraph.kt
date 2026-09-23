@@ -18,13 +18,11 @@ import com.rrpsystems.rrphone.ui.screens.dialer.DialerScreen
 import com.rrpsystems.rrphone.ui.screens.history.HistoryScreen
 import com.rrpsystems.rrphone.ui.screens.login.LoginScreen
 import com.rrpsystems.rrphone.ui.screens.login.LoginViewModel
-import com.rrpsystems.rrphone.ui.screens.onboarding.BatteryOptimizationScreen
 import com.rrpsystems.rrphone.ui.screens.settings.SettingsScreen
 import com.rrpsystems.rrphone.ui.screens.transfer.TransferScreen
 
 sealed class Route(val route: String) {
     object Login : Route("login")
-    object BatteryOnboarding : Route("battery_onboarding")
     object Dialer : Route(Routes.DIALER)
     object Call : Route("call")
     object Transfer : Route("transfer")
@@ -82,18 +80,8 @@ fun AppNavGraph(
             LoginScreen(
                 viewModel = loginViewModel,
                 onLoginSuccess = {
-                    navController.navigate(Route.BatteryOnboarding.route) {
-                        popUpTo(Route.Login.route) { inclusive = true }
-                    }
-                }
-            )
-        }
-
-        composable(Route.BatteryOnboarding.route) {
-            BatteryOptimizationScreen(
-                onContinue = {
                     navController.navigate(Route.Dialer.route) {
-                        popUpTo(Route.BatteryOnboarding.route) { inclusive = true }
+                        popUpTo(Route.Login.route) { inclusive = true }
                     }
                 }
             )

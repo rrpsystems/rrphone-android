@@ -38,6 +38,35 @@ O `linphone-sdk-android` do Maven não traz G.729. Ele vem de
 As `.so` estão versionadas; recompile só ao mudar a versão do SDK — ver
 [`native/README.md`](native/README.md).
 
+## Publicando no Play
+
+O Play recebe um `.aab` assinado com a **chave de upload**. A chave final do
+app fica com o Google (Play App Signing); se a de upload se perder, o Google
+troca, mas dá trabalho, então guarde uma cópia do `.jks` e das senhas em
+local seguro, fora deste repositório.
+
+1. Criar a chave de upload (uma vez só), fora da pasta do projeto:
+
+   ```
+   keytool -genkeypair -v -keystore C:\dev\RRPhone\keys\rrphone-upload.jks -alias upload -keyalg RSA -keysize 4096 -validity 10000
+   ```
+
+2. Criar `keystore.properties` na raiz deste projeto (está no `.gitignore`):
+
+   ```
+   storeFile=../keys/rrphone-upload.jks
+   storePassword=...
+   keyAlias=upload
+   keyPassword=...
+   ```
+
+3. Subir `versionCode` em `app/build.gradle.kts` (o Play recusa um número já
+   enviado) e ajustar `versionName`.
+
+4. `gradlew bundleRelease` → `app/build/outputs/bundle/release/app-release.aab`.
+
+Política de privacidade: https://rrpsystems.github.io/rrphone-desktop/privacidade.html
+
 ## Licença
 
 GNU GPL v3 (ver [LICENSE](LICENSE)). O app usa o liblinphone (GPL v3), o

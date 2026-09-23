@@ -151,6 +151,8 @@ private fun AccountSection(profile: AccountProfile, onSave: (AccountProfile) -> 
     var password by remember(profile) { mutableStateOf(profile.password) }
     var domain by remember(profile) { mutableStateOf(profile.domain) }
     var transport by remember(profile) { mutableStateOf(profile.transport) }
+    var pushEnabled by remember(profile) { mutableStateOf(profile.pushEnabled) }
+    var outboundProxy by remember(profile) { mutableStateOf(profile.outboundProxy) }
     var showPassword by remember { mutableStateOf(false) }
 
     Section("Conta") {
@@ -187,20 +189,61 @@ private fun AccountSection(profile: AccountProfile, onSave: (AccountProfile) -> 
             placeholder = { Text("sip.exemplo.com[:porta]") }, singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri), modifier = Modifier.fillMaxWidth())
         TransportSelector(transport) { transport = it }
+        PushProxyFields(
+            pushEnabled = pushEnabled, onPushChange = { pushEnabled = it },
+            proxy = outboundProxy, onProxyChange = { outboundProxy = it },
+        )
         val dirty = displayName != profile.displayName || username != profile.username ||
-            password != profile.password || domain != profile.domain || transport != profile.transport
+            password != profile.password || domain != profile.domain || transport != profile.transport ||
+            outboundProxy.trim() != profile.outboundProxy || pushEnabled != profile.pushEnabled
         Button(
             onClick = {
                 onSave(
                     profile.copy(
                         displayName = displayName.trim(), username = username.trim(), password = password,
-                        domain = domain.trim(), transport = transport
+                        domain = domain.trim(), transport = transport, pushEnabled = pushEnabled,
+                        outboundProxy = outboundProxy.trim()
                     )
                 )
             },
             enabled = username.isNotBlank() && domain.isNotBlank() && password.isNotEmpty(),
             modifier = Modifier.fillMaxWidth()
         ) { Text(if (dirty) "Salvar e registrar" else "Registrar novamente") }
+    }
+}
+
+/**
+ * Push: uma chave, não um endereço. O único servidor que acorda este app é o
+ * Flexisip da RRP (o push sai do nosso projeto Firebase), então não há o que
+ * escolher. Desligado, registra direto no servidor SIP; o campo de proxy só
+ * aparece aí, para o caso raro de um SBC/proxy do cliente.
+ */
+@Composable
+fun PushProxyFields(
+    pushEnabled: Boolean,
+    onPushChange: (Boolean) -> Unit,
+    proxy: String,
+    onProxyChange: (String) -> Unit,
+) {
+    Row(Modifier.fillMaxWidth().clickable { onPushChange(!pushEnabled) }, verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f)) {
+            Text("Receber chamadas com o app fechado", color = Rrp.TextPrimary, fontSize = 15.sp)
+            Text(
+                if (pushEnabled) "Push pelo servidor RRP. Recomendado."
+                else "Desligado: o app só recebe chamadas enquanto está aberto.",
+                color = Rrp.TextSecondary, fontSize = 12.sp, lineHeight = 16.sp
+            )
+        }
+        Switch(checked = pushEnabled, onCheckedChange = onPushChange)
+    }
+    if (!pushEnabled) {
+        OutlinedTextField(
+            proxy, onProxyChange, label = { Text("Proxy de saída (opcional)") },
+            placeholder = { Text("vazio = direto no servidor") },
+            supportingText = { Text("Só se a rede do cliente exigir um proxy/SBC. Sem porta, usa TLS 5061.") },
+            singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+            modifier = Modifier.fillMaxWidth()
+        )
     }
 }
 

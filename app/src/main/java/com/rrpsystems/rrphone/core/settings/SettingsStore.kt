@@ -31,6 +31,8 @@ object SettingsStore {
             .putString("transport", profile.transport)
             .putString("dtmfMethod", profile.dtmfMethod)
             .putString("contactsUrl", profile.contactsUrl)
+            .putBoolean("pushEnabled", profile.pushEnabled)
+            .putString("outboundProxy", profile.outboundProxy)
             .putString("codecs", profile.codecs.joinToString(","))
             .apply()
         keystore.saveSecureString(KeystoreManager.KEY_SIP_PASSWORD, profile.password)
@@ -48,6 +50,10 @@ object SettingsStore {
             transport = prefs.getString("transport", "udp") ?: "udp",
             dtmfMethod = prefs.getString("dtmfMethod", "rfc2833") ?: "rfc2833",
             contactsUrl = prefs.getString("contactsUrl", "") ?: "",
+            // Conta gravada antes da chave de push existir: continua registrando
+            // direto, como fazia — o push ligado por padrão é só para contas novas.
+            pushEnabled = prefs.getBoolean("pushEnabled", false),
+            outboundProxy = prefs.getString("outboundProxy", "") ?: "",
             codecs = (prefs.getString("codecs", "") ?: "").split(',').filter { it.isNotBlank() },
         )
     }
@@ -55,7 +61,7 @@ object SettingsStore {
     fun clearProfile() {
         prefs.edit()
             .remove("displayName").remove("username").remove("domain").remove("transport")
-            .remove("dtmfMethod").remove("contactsUrl").remove("codecs")
+            .remove("dtmfMethod").remove("contactsUrl").remove("codecs").remove("outboundProxy").remove("pushEnabled")
             .apply()
         keystore.removeSecureString(KeystoreManager.KEY_SIP_PASSWORD)
     }

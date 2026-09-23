@@ -706,6 +706,28 @@ object CallManager {
             audioRoute = currentRoute,
             availableRoutes = routes,
         )
+        syncForegroundService(_ui.value)
+    }
+
+    // Quem está no serviço de chamada agora; null = serviço parado. Evita
+    // reiniciar o serviço a cada evento da chamada.
+    private var foregroundWho: String? = null
+
+    /**
+     * Serviço em primeiro plano enquanto há chamada efetuada ou atendida. A
+     * que só está tocando já tem a notificação de chamada recebida.
+     */
+    private fun syncForegroundService(state: CallUiState) {
+        val ctx = appContext ?: return
+        val live = state.phase == CallPhase.Outgoing || state.phase == CallPhase.Active
+        val who = if (live) state.party?.label.orEmpty() else null
+        if (who == foregroundWho) return
+        foregroundWho = who
+        if (who != null) {
+            com.rrpsystems.rrphone.core.telecom.CallForegroundService.start(ctx, who)
+        } else {
+            com.rrpsystems.rrphone.core.telecom.CallForegroundService.stop(ctx)
+        }
     }
 
     private fun routeOf(type: AudioDevice.Type): AudioRoute? = when (type) {
