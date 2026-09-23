@@ -4,11 +4,14 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.rrpsystems.rrphone.core.api.LoginRequest
-import com.rrpsystems.rrphone.core.api.RetrofitClient
-import com.rrpsystems.rrphone.core.security.KeystoreManager
-import com.rrpsystems.rrphone.core.sip.SipAccountHelper
+import com.rrpsystems.rrphone.core.contacts.ContactsRepository
+import com.rrpsystems.rrphone.core.settings.AccountProfile
+import com.rrpsystems.rrphone.core.settings.SettingsStore
+import com.rrpsystems.rrphone.core.sip.LinphoneManager
+import com.rrpsystems.rrphone.core.sip.Registration
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 sealed class LoginState {
     object Idle : LoginState()
@@ -17,61 +20,59 @@ sealed class LoginState {
     data class Error(val error: String) : LoginState()
 }
 
-class LoginViewModel(
-    private val keystoreManager: KeystoreManager,
-    private val sipAccountHelper: SipAccountHelper
-) : ViewModel() {
-
-    private val apiService = RetrofitClient.getService(keystoreManager)
+class LoginViewModel : ViewModel() {
 
     private val _loginState = mutableStateOf<LoginState>(LoginState.Idle)
     val loginState: State<LoginState> = _loginState
 
-    fun authenticateAndProvision(email: String, pass: String) {
-        if (email.isBlank() || pass.isBlank()) {
+    fun configureSipAccount(domain: String, extension: String, pass: String, transport: String) {
+        if (domain.isBlank() || extension.isBlank() || pass.isBlank()) {
             _loginState.value = LoginState.Error("Preencha todos os campos.")
             return
         }
+        applyProfile(
+            AccountProfile(
+                username = extension.trim(),
+                password = pass.trim(),
+                domain = domain.trim(),
+                transport = transport,
+            )
+        )
+    }
 
+    /**
+     * Aplica e espera o servidor responder. A conta só é gravada quando o
+     * registro dá certo: gravar antes faria o app pular esta tela na próxima
+     * abertura com uma senha errada salva.
+     */
+    fun applyProfile(profile: AccountProfile) {
         _loginState.value = LoginState.Loading
-
         viewModelScope.launch {
-            try {
-                // TODO: Bypassing the API for MVP testing
-                /* 
-                // Código original da API comentado
-                val loginResponse = apiService.login(LoginRequest(email, pass))
-                ...
-                */
-
-                // DADOS MOCKADOS FORNECIDOS PELO USUÁRIO PARA TESTE
-                val sipServer = "escritorio.rrpsystems.com.br"
-                val sipPort = "5090"
-                val sipTransport = "tcp"
-                val sipExtension = "2127"
-                val sipPassword = "!U^cz1hUDv"
-
-                // Simulando latência de rede
-                kotlinx.coroutines.delay(1000)
-
-                // Passo 3: Salvar senha do SIP no Keystore
-                keystoreManager.saveSecureString(KeystoreManager.KEY_SIP_PASSWORD, sipPassword)
-
-                // Passo 4: Registrar conta no Liblinphone
-                sipAccountHelper.configureAndRegisterAccount(
-                    username = sipExtension,
-                    domain = sipServer,
-                    proxyAddress = sipServer,
-                    port = sipPort,
-                    transport = sipTransport
-                )
-
-                _loginState.value = LoginState.Success("Login simulado com sucesso!")
-
-            } catch (e: Exception) {
-                e.printStackTrace()
-                _loginState.value = LoginState.Error("Erro: ${e.localizedMessage}")
+            LinphoneManager.applyAccount(profile)
+            val result = withTimeoutOrNull(15_000) {
+                LinphoneManager.registration.first { it is Registration.Ok || it is Registration.Failed }
+            }
+            when (result) {
+                is Registration.Ok -> {
+                    SettingsStore.saveProfile(profile)
+                    ContactsRepository.setUrl(profile.contactsUrl)
+                    _loginState.value = LoginState.Success("Conta configurada!")
+                }
+                is Registration.Failed -> {
+                    LinphoneManager.clearAccount()
+                    _loginState.value = LoginState.Error("O servidor recusou o registro: ${result.message}")
+                }
+                else -> {
+                    LinphoneManager.clearAccount()
+                    _loginState.value = LoginState.Error("Sem resposta do servidor. Confira o endereço, a porta e o transporte.")
+                }
             }
         }
     }
+
+    fun showError(message: String) {
+        _loginState.value = LoginState.Error(message)
+    }
+
+    fun checkIsLoggedIn(): Boolean = SettingsStore.loadProfile() != null
 }

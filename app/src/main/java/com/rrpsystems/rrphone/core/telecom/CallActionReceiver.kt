@@ -11,7 +11,7 @@ class CallActionReceiver : BroadcastReceiver() {
         when (intent.action) {
             "com.rrpsystems.rrphone.ACTION_DECLINE_CALL" -> {
                 // Desliga a chamada SIP
-                CallManager.hangUp()
+                CallManager.decline()
                 
                 // Remove a notificação da barra superior
                 val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager

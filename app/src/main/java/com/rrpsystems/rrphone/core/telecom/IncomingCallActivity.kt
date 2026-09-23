@@ -20,7 +20,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.rrpsystems.rrphone.MainActivity
 import com.rrpsystems.rrphone.core.sip.CallManager
-import org.linphone.core.Call
+import com.rrpsystems.rrphone.core.sip.CallPhase
 
 /**
  * Activity dedicada 100% a acender a tela do celular quando está bloqueado.
@@ -47,17 +47,12 @@ class IncomingCallActivity : ComponentActivity() {
         val callerName = intent.getStringExtra("CALLER_NAME") ?: "Desconhecido"
 
         setContent {
-            val callState by CallManager.callState.collectAsState()
+            val ui by CallManager.ui.collectAsState()
 
-            // Se o chamador desligar antes de atendermos, a tela fecha sozinha
-            LaunchedEffect(callState) {
-                if (callState == Call.State.End || callState == Call.State.Released || callState == Call.State.Error) {
-                    finish()
-                }
-                // Se por algum motivo o estado já for streams running, significa que atendeu de outro lugar
-                if (callState == Call.State.StreamsRunning) {
-                    finish()
-                }
+            // Fecha sozinha se o chamador desistir ou se a chamada for atendida
+            // por outro caminho (notificação, Bluetooth).
+            LaunchedEffect(ui.phase) {
+                if (ui.phase != CallPhase.Incoming) finish()
             }
 
             MaterialTheme {
@@ -97,7 +92,7 @@ class IncomingCallActivity : ComponentActivity() {
                             // Botão Recusar
                             FloatingActionButton(
                                 onClick = {
-                                    CallManager.hangUp()
+                                    CallManager.decline()
                                     finish()
                                 },
                                 containerColor = Color(0xFFD32F2F)
@@ -108,7 +103,7 @@ class IncomingCallActivity : ComponentActivity() {
                             // Botão Atender
                             FloatingActionButton(
                                 onClick = {
-                                    CallManager.acceptCall()
+                                    CallManager.answer()
                                     
                                     // Fecha essa tela da tela de bloqueio
                                     finish()

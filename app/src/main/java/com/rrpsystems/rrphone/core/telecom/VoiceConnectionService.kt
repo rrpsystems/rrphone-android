@@ -126,7 +126,7 @@ class VoiceConnectionService : ConnectionService() {
         // Dispara a ligação real pelo Liblinphone
         val numberToCall = target?.schemeSpecificPart
         if (numberToCall != null) {
-            CallManager.internalMakeCall(numberToCall)
+            CallManager.placeCall(numberToCall)
         }
 
         return connection
@@ -145,6 +145,9 @@ class VoiceConnectionService : ConnectionService() {
         request: ConnectionRequest?
     ) {
         super.onCreateOutgoingConnectionFailed(connectionManagerPhoneAccount, request)
-        Log.e("VoiceConnectionSvc", "Falha ao criar conexão efetuada nativa")
+        Log.e("VoiceConnectionSvc", "Falha ao criar conexão efetuada nativa; discando sem integração com o sistema")
+        // O sistema recusou (ex.: outra ligação celular em curso). Discar mesmo
+        // assim é melhor que o botão Ligar não fazer nada.
+        request?.address?.schemeSpecificPart?.let { CallManager.placeCall(it) }
     }
 }

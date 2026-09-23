@@ -39,6 +39,7 @@ object TelecomHelper {
      * O Android vai acordar a tela e mostrar a UI de atender padrão do sistema.
      */
     fun startIncomingCall(context: Context, callerNumber: String) {
+        if (!::phoneAccountHandle.isInitialized) registerPhoneAccount(context)
         val telecomManager = context.getSystemService(Context.TELECOM_SERVICE) as TelecomManager
         
         val extras = Bundle().apply {
@@ -58,9 +59,11 @@ object TelecomHelper {
      * Avisa o Android que o usuário quer iniciar uma chamada pelo nosso app.
      * Isso permite que a chamada apareça no histórico do Android e funcione com Bluetooth.
      */
-    fun startOutgoingCall(context: Context, targetNumber: String) {
+    /** False quando o sistema recusou — quem chama disca direto nesse caso. */
+    fun startOutgoingCall(context: Context, targetNumber: String): Boolean {
         val telecomManager = context.getSystemService(Context.TELECOM_SERVICE) as TelecomManager
         
+        if (!::phoneAccountHandle.isInitialized) registerPhoneAccount(context)
         val uri = Uri.fromParts("sip", targetNumber, null)
         val extras = Bundle().apply {
             putParcelable(TelecomManager.EXTRA_PHONE_ACCOUNT_HANDLE, phoneAccountHandle)
@@ -69,10 +72,12 @@ object TelecomHelper {
         try {
             telecomManager.placeCall(uri, extras)
             Log.i(TAG, "Solicitando ao Android para iniciar chamada saindo: $targetNumber")
+            return true
         } catch (e: SecurityException) {
             Log.e(TAG, "Permissão MANAGE_OWN_CALLS negada ou não concedida.", e)
         } catch (e: Exception) {
             Log.e(TAG, "Erro ao iniciar chamada pelo TelecomManager", e)
         }
+        return false
     }
 }

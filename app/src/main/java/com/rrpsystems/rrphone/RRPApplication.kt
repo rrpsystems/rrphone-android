@@ -2,6 +2,10 @@ package com.rrpsystems.rrphone
 
 import android.app.Application
 import android.util.Log
+import com.rrpsystems.rrphone.core.contacts.ContactsRepository
+import com.rrpsystems.rrphone.core.history.CallHistoryStore
+import com.rrpsystems.rrphone.core.settings.SettingsStore
+import com.rrpsystems.rrphone.core.sip.CallManager
 import com.rrpsystems.rrphone.core.sip.LinphoneManager
 
 class RRPApplication : Application() {
@@ -10,16 +14,20 @@ class RRPApplication : Application() {
         super.onCreate()
         Log.i("RRPApplication", "Inicializando RRPApplication e serviços globais.")
 
-        // Inicializar a Factory e o Core do Liblinphone
-        // OBS: Isso pode ser movido para uma inicialização Assíncrona caso o 
-        // tempo de inicialização impacte muito a abertura do app.
-        LinphoneManager.start(this)
-    }
+        SettingsStore.init(this)
+        CallHistoryStore.init(this)
+        ContactsRepository.init(this)
 
-    override fun onTerminate() {
-        super.onTerminate()
-        // O Android raramente chama onTerminate em dispositivos reais, 
-        // mas é boa prática ter o cleanup definido.
-        LinphoneManager.destroy()
+        LinphoneManager.start(this)
+        CallManager.init(this)
+        LinphoneManager.setAudioProcessing(
+            SettingsStore.noiseSuppression, SettingsStore.echoCancellation, SettingsStore.automaticGainControl
+        )
+
+        // Conta salva: registra já, sem depender de a tela abrir.
+        SettingsStore.loadProfile()?.let { profile ->
+            LinphoneManager.applyAccount(profile)
+            ContactsRepository.setUrl(profile.contactsUrl)
+        }
     }
 }

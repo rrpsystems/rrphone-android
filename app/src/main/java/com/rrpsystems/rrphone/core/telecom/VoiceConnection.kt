@@ -5,57 +5,48 @@ import android.telecom.DisconnectCause
 import com.rrpsystems.rrphone.core.sip.CallManager
 
 /**
- * Representa uma única chamada VoIP no sistema operacional Android.
- * É isso que o Android gerencia quando aparece na tela de bloqueio.
+ * A "sessão" de chamada vista pelo Android: é o que aparece na tela de
+ * bloqueio, recebe os botões do Bluetooth/carro e dá ao app o áudio de
+ * ligação. Os comandos vindos daqui são repassados ao CallManager.
  */
 class VoiceConnection : Connection() {
     init {
-        // Indica que nosso app gerencia a própria UI, mas quer o roteamento de áudio do SO
         connectionProperties = PROPERTY_SELF_MANAGED
         audioModeIsVoip = true
     }
 
-    // Quando o usuário aperta o botão verde na tela de bloqueio do Android
     override fun onAnswer(videoState: Int) {
-        super.onAnswer(videoState)
-        CallManager.acceptCall()
+        CallManager.answer()
         setActive()
     }
 
-    // Quando o usuário recusa na tela nativa
     override fun onReject() {
-        super.onReject()
-        CallManager.hangUp()
-        setDisconnected(DisconnectCause(DisconnectCause.REJECTED))
-        destroy()
+        CallManager.decline()
+        close(DisconnectCause.REJECTED)
     }
 
-    // Quando o usuário desliga durante a chamada
     override fun onDisconnect() {
-        super.onDisconnect()
         CallManager.hangUp()
-        setDisconnected(DisconnectCause(DisconnectCause.LOCAL))
-        destroy()
+        close(DisconnectCause.LOCAL)
     }
 
-    // Cancela antes de atender
     override fun onAbort() {
-        super.onAbort()
         CallManager.hangUp()
-        setDisconnected(DisconnectCause(DisconnectCause.CANCELED))
-        destroy()
+        close(DisconnectCause.CANCELED)
     }
 
-    // Quando clica em "Espera" no painel nativo do carro/bluetooth
+    // Espera pedida pelo sistema: outra ligação celular chegando, botão do carro.
     override fun onHold() {
-        super.onHold()
-        CallManager.toggleHold()
-        setOnHold()
+        CallManager.setHeld(true)
     }
 
     override fun onUnhold() {
-        super.onUnhold()
-        CallManager.toggleHold()
-        setActive()
+        CallManager.setHeld(false)
+    }
+
+    private fun close(cause: Int) {
+        setDisconnected(DisconnectCause(cause))
+        destroy()
+        if (CallManager.currentVoiceConnection === this) CallManager.currentVoiceConnection = null
     }
 }
