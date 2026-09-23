@@ -67,7 +67,7 @@ class IncomingCallActivity : ComponentActivity() {
                         verticalArrangement = Arrangement.Center
                     ) {
                         Text(
-                            text = "RRPhone",
+                            text = "RRP Softphone",
                             color = Color.LightGray,
                             fontSize = 20.sp
                         )

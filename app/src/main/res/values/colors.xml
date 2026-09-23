@@ -7,4 +7,6 @@
     <color name="teal_700">#FF018786</color>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+    <!-- Fundo do ícone do app: o mesmo fundo escuro da interface (Rrp.Background). -->
+    <color name="ic_launcher_background">#14181D</color>
 </resources>

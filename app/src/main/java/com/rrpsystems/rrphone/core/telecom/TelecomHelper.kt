@@ -20,7 +20,7 @@ object TelecomHelper {
         
         phoneAccountHandle = PhoneAccountHandle(componentName, "RRPhoneAccount")
 
-        val phoneAccount = PhoneAccount.builder(phoneAccountHandle, "RRPhone")
+        val phoneAccount = PhoneAccount.builder(phoneAccountHandle, "RRP Softphone")
             .setCapabilities(PhoneAccount.CAPABILITY_SELF_MANAGED)
             .addSupportedUriScheme(PhoneAccount.SCHEME_SIP)
             .addSupportedUriScheme(PhoneAccount.SCHEME_TEL)
