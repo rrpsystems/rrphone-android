@@ -51,7 +51,8 @@ fun CallScreen(
     val elapsed = rememberElapsed(ui.connectedAt)
     val party = ui.party
     val inCall = ui.phase == CallPhase.Active
-    val canTransfer = inCall && ui.waiting == null && ui.parked == null
+    val inConference = ui.conference != null
+    val canTransfer = inCall && ui.waiting == null && ui.parked == null && !inConference
 
     Column(
         modifier = Modifier
@@ -62,14 +63,14 @@ fun CallScreen(
     ) {
         Spacer(Modifier.height(48.dp))
         Text(
-            party?.label ?: "",
+            if (inConference) "Conferência" else party?.label ?: "",
             fontSize = 30.sp, fontWeight = FontWeight.Medium, color = Rrp.TextPrimary,
             maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(horizontal = 24.dp)
         )
-        if (party != null && party.name.isNotBlank()) {
+        if (!inConference && party != null && party.name.isNotBlank()) {
             Text(party.number, fontSize = 16.sp, color = Rrp.TextSecondary)
         }
-        if (ui.dialed.isNotEmpty()) {
+        if (!inConference && ui.dialed.isNotEmpty()) {
             Text("discado: ${ui.dialed}", fontSize = 13.sp, color = Rrp.TextSecondary)
         }
         Spacer(Modifier.height(6.dp))
@@ -89,6 +90,12 @@ fun CallScreen(
         ui.parked?.let {
             Spacer(Modifier.height(16.dp))
             InfoChip("Em espera: ${it.label}")
+        }
+        ui.conference?.let { parties ->
+            Spacer(Modifier.height(20.dp))
+            parties.forEachIndexed { index, p ->
+                ConferenceParticipantRow(p.label) { CallManager.dropConferenceParticipant(index) }
+            }
         }
         ui.transfer?.let {
             Spacer(Modifier.height(16.dp))
@@ -129,7 +136,7 @@ fun CallScreen(
                     RoundActionButton("Teclado", Icons.Default.Dialpad, onClick = { showKeypad = true })
                     RoundActionButton("Espera", Icons.Default.Pause,
                         onClick = { CallManager.setHeld(!ui.held) }, active = ui.held,
-                        enabled = inCall && ui.waiting == null)
+                        enabled = inCall && ui.waiting == null && !inConference)
                 }
                 Spacer(Modifier.height(28.dp))
                 Row(horizontalArrangement = Arrangement.SpaceEvenly, modifier = Modifier.fillMaxWidth()) {
@@ -159,10 +166,15 @@ fun CallScreen(
                             }
                         }
                     }
-                    RoundActionButton("Transferir", Icons.AutoMirrored.Filled.PhoneForwarded,
-                        onClick = onOpenTransfer, enabled = canTransfer || ui.transfer != null)
+                    // Com duas chamadas atendidas, este lugar vira "Conferência".
+                    if (ui.canConference && ui.transfer == null) {
+                        RoundActionButton("Conferência", Icons.Default.Groups, onClick = CallManager::startConference)
+                    } else {
+                        RoundActionButton("Transferir", Icons.AutoMirrored.Filled.PhoneForwarded,
+                            onClick = onOpenTransfer, enabled = canTransfer || ui.transfer != null)
+                    }
                     RoundActionButton("Alternar", Icons.Default.SwapCalls,
-                        onClick = CallManager::swapCalls, enabled = ui.parked != null)
+                        onClick = CallManager::swapCalls, enabled = ui.parked != null && !inConference)
                 }
             }
         }
@@ -178,6 +190,26 @@ fun CallScreen(
             BigCircleButton(Icons.Default.CallEnd, Rrp.Red, "Desligar", CallManager::hangUp)
         }
         Spacer(Modifier.height(40.dp))
+    }
+}
+
+/** Um participante da conferência, com o botão para desligar só ele. */
+@Composable
+private fun ConferenceParticipantRow(name: String, onDrop: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .padding(horizontal = 32.dp, vertical = 4.dp)
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(50))
+            .background(Rrp.Panel)
+            .padding(start = 20.dp, end = 6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(name, color = Rrp.TextPrimary, fontSize = 16.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f))
+        IconButton(onClick = onDrop) {
+            Icon(Icons.Default.CallEnd, contentDescription = "Desligar $name", tint = Rrp.Red)
+        }
     }
 }
 

@@ -93,6 +93,19 @@ object SettingsStore {
         get() = prefs.getBoolean("agc", false)
         set(value) = prefs.edit().putBoolean("agc", value).apply()
 
+    // --- Identidade do aparelho -------------------------------------------------
+
+    /**
+     * O +sip.instance deste aparelho, gerado pelo liblinphone na primeira
+     * execução. Precisa ser o mesmo em toda abertura: é por ele que o PBX
+     * reconhece o registro novo como substituto do anterior. Sem isso, cada
+     * abertura somava um contato de 7 dias no PBX até ele recusar com 403.
+     * Fica mesmo depois de "Sair da conta" — identifica o aparelho, não a conta.
+     */
+    var instanceUuid: String
+        get() = prefs.getString("instanceUuid", "") ?: ""
+        set(value) = prefs.edit().putString("instanceUuid", value).apply()
+
     // --- Contatos -----------------------------------------------------------
 
     /** Quando ligado, a lista do servidor apaga os contatos locais ao chegar. */

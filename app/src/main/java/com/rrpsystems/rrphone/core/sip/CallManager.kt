@@ -74,6 +74,10 @@ data class CallUiState(
     // captura, desvio): o visor mostra quem atendeu e, embaixo, o discado.
     val dialed: String = "",
     val transfer: TransferUi? = null,
+    // Conferência a três em andamento: as duas pessoas além do usuário.
+    val conference: List<Party>? = null,
+    // Há duas chamadas atendidas que podem virar uma conferência.
+    val canConference: Boolean = false,
     val audioRoute: AudioRoute = AudioRoute.Earpiece,
     val availableRoutes: List<AudioRoute> = emptyList(),
 )
@@ -123,6 +127,9 @@ object CallManager {
     private var heldCall: Call? = null          // estacionada, durante chamada em espera
     private var waitingCall: Call? = null       // segunda chamada tocando, ainda sem decisão
     private var consultationCall: Call? = null  // chamada C, só durante a transferência
+    // Conferência local a três (o áudio é misturado no aparelho). Enquanto
+    // existe, activeCall e heldCall são os dois participantes. É do Core.
+    private var conference: org.linphone.core.Conference? = null
     private var transferTarget = ""             // guardado para o fallback de transferência cega
     private var consultationAnswered = false
     private var transferCompleting = false
@@ -229,7 +236,14 @@ object CallManager {
     }
 
     fun hangUp() {
-        Log.i(TAG, "Desligar solicitado | principal: ${activeCall != null} | consulta: ${consultationCall != null}")
+        Log.i(TAG, "Desligar solicitado | principal: ${activeCall != null} | consulta: ${consultationCall != null}" +
+            " | conferência: ${conference != null}")
+        if (conference != null) {
+            // Conferência local: sair dela encerra para os dois (BYE em cada um).
+            heldCall?.terminate()
+            activeCall?.terminate()
+            return
+        }
         consultationCall?.terminate()
         val call = activeCall
         if (call != null) {
@@ -246,6 +260,8 @@ object CallManager {
     fun setMuted(value: Boolean) {
         muted = value
         LinphoneManager.coreOrNull()?.isMicEnabled = !value
+        // O mixer da conferência tem o próprio mudo.
+        conference?.microphoneMuted = value
         publish()
     }
 
@@ -316,6 +332,55 @@ object CallManager {
         heldCall = goingToHold
         Log.i(TAG, "Alternando entre as duas chamadas")
         publish()
+    }
+
+    // --- Conferência a três ---------------------------------------------------
+
+    private fun canStartConference(): Boolean =
+        LinphoneManager.coreOrNull() != null && conference == null && activeCall != null && waitingCall == null &&
+            ((consultationCall != null && consultationAnswered) || heldCall != null)
+
+    /**
+     * Junta as duas chamadas atendidas (a consulta da transferência, ou as duas
+     * da chamada em espera) numa conferência local. Sem endereço de fábrica de
+     * conferência, o liblinphone mistura o áudio no próprio aparelho — nada do PBX.
+     */
+    fun startConference() {
+        if (!canStartConference()) return
+        val core = LinphoneManager.coreOrNull() ?: return
+        val first = activeCall ?: return
+        val other = consultationCall ?: heldCall ?: return
+        val params = core.createConferenceParams(null).apply {
+            isAudioEnabled = true
+            isVideoEnabled = false
+            isChatEnabled = false
+            isLocalParticipantEnabled = true
+            subjectUtf8 = "Conferência"
+        }
+        val conf = core.createConferenceWithParams(params)
+        if (conf == null) {
+            _hookMessage.value = "Não foi possível iniciar a conferência"
+            return
+        }
+        conference = conf
+        conf.addParticipant(first)
+        conf.addParticipant(other)
+        conf.microphoneMuted = muted
+        // Daqui em diante as duas chamadas são a conferência: sem consulta,
+        // sem estacionada, nada a transferir.
+        heldCall = other
+        consultationCall = null
+        consultationAnswered = false
+        transferTarget = ""
+        transferCompleting = false
+        Log.i(TAG, "Conferência iniciada: ${parties[id(first)]?.label} + ${parties[id(other)]?.label}")
+        publish()
+    }
+
+    /** Desliga um dos dois (0 ou 1, na ordem de CallUiState.conference); o outro segue em chamada normal. */
+    fun dropConferenceParticipant(index: Int) {
+        if (conference == null) return
+        (if (index == 0) activeCall else heldCall)?.terminate()
     }
 
     // --- Transferência (D-06 / D-07) ----------------------------------------
@@ -484,6 +549,17 @@ object CallManager {
             if (same(call, activeCall) && !track.answered && !track.incoming) {
                 _hookMessage.value = failureText(call, state, message)
             }
+        }
+
+        if (conference != null && (same(call, activeCall) || same(call, heldCall))) {
+            // Um dos participantes saiu: o liblinphone já devolve o outro a uma
+            // chamada normal; aqui só acompanhamos. Com os ponteiros ajustados,
+            // o restante desta função não confunde a chamada que terminou.
+            val remaining = if (same(call, activeCall)) heldCall else activeCall
+            conference = null
+            activeCall = remaining
+            heldCall = null
+            Log.i(TAG, "Conferência encerrada; segue a chamada com ${remaining?.let { parties[id(it)]?.label }}")
         }
 
         if (same(call, waitingCall)) {
@@ -696,7 +772,9 @@ object CallManager {
             muted = muted,
             held = call?.state == Call.State.Paused || call?.state == Call.State.Pausing,
             waiting = waitingCall?.let { parties[id(it)] },
-            parked = heldCall?.let { parties[id(it)] },
+            parked = if (conference == null) heldCall?.let { parties[id(it)] } else null,
+            conference = if (conference != null) listOfNotNull(activeCall, heldCall).map { parties[id(it)] ?: Party("", "") } else null,
+            canConference = canStartConference(),
             dialed = call?.let { c ->
                 val track = tracks[id(c)]
                 val connected = parties[id(c)]?.number

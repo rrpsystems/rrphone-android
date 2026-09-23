@@ -13,6 +13,7 @@ import androidx.compose.material.icons.automirrored.outlined.Backspace
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Contacts
+import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -149,10 +150,24 @@ fun TransferScreen(onDone: () -> Unit) {
                 )
                 Spacer(Modifier.height(24.dp))
                 Text(
-                    if (transfer.answered) "Transferir entrega ${ui.party?.label ?: "a chamada"} a ${transfer.target}."
+                    if (transfer.answered) "Transferir entrega ${ui.party?.label ?: "a chamada"} a ${transfer.target}. " +
+                        "Conferência junta vocês três."
                     else "Se transferir agora, a chamada vai direto, sem anúncio.",
                     color = Rrp.TextSecondary, fontSize = 13.sp, textAlign = TextAlign.Center,
                     modifier = Modifier.padding(horizontal = 40.dp)
+                )
+            }
+            // Destino atendeu: além de transferir, dá para juntar os três. Opção
+            // secundária de propósito (botão neutro, sem a largura toda):
+            // transferir é o gesto do dia a dia e tem de continuar em destaque.
+            if (ui.canConference) {
+                PillButton(
+                    text = "Conferência", icon = Icons.Default.Groups, color = Rrp.Button,
+                    onClick = CallManager::startConference,
+                    modifier = Modifier
+                        .align(Alignment.CenterHorizontally)
+                        .padding(bottom = 16.dp)
+                        .widthIn(min = 180.dp)
                 )
             }
             Row(

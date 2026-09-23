@@ -46,7 +46,7 @@ android {
         // que consegue acordar este app: o push sai do projeto Firebase cujo
         // google-services.json vai dentro do APK. Um nome, não um IP, para o
         // servidor poder mudar só pelo DNS. Outro valor: -Prrp.pushProxy=...
-        val pushProxy = (project.findProperty("rrp.pushProxy") as String?) ?: "push.rrpsystems.com.br"
+        val pushProxy = (project.findProperty("rrp.pushProxy") as String?) ?: "sip:push.rrpsystems.com.br:5091;transport=tls"
         buildConfigField("String", "RRP_PUSH_PROXY", "\"$pushProxy\"")
     }
 
@@ -86,6 +86,17 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
+    }
+
+    // A libmswebrtc x86/x86_64 do SDK usa instruções AVX: em CPU sem elas (o
+    // emulador) o app morre com SIGILL ao montar o áudio — primeiro no
+    // cancelador de eco, depois no áudio da conferência. Sem ela nesses ABIs,
+    // o mediastreamer registra o plugin como ausente e usa o Speex, embutido.
+    // Celulares são ARM e mantêm o WebRTC (AEC3), melhor no viva-voz.
+    packaging {
+        jniLibs {
+            excludes += listOf("lib/x86/libmswebrtc.so", "lib/x86_64/libmswebrtc.so")
+        }
     }
 }
 

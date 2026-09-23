@@ -9,6 +9,7 @@ import com.rrpsystems.rrphone.core.settings.Codecs
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import org.linphone.core.Account
 import org.linphone.core.Core
 import org.linphone.core.CoreListenerStub
@@ -33,6 +34,18 @@ sealed class Registration {
  */
 object LinphoneManager {
     private const val TAG = "LinphoneManager"
+
+    // Validade do registro. Com push, o Flexisip segura o registro no PBX
+    // enquanto o celular dorme, então ele precisa durar: 7 dias, o que o app
+    // renova sempre que acorda. Sem push, o app fala direto com o PBX e a
+    // validade é curta, para contatos de um processo morto sumirem logo em
+    // vez de acumular até o PBX responder 403 (igual ao desktop).
+    private const val EXPIRES_WITH_PUSH = 7 * 24 * 3600
+    private const val EXPIRES_DIRECT = 300
+
+    // O liblinphone é usado na thread principal (é nela que o Core itera).
+    private val scope = kotlinx.coroutines.MainScope()
+    private var pendingApply: kotlinx.coroutines.Job? = null
 
     private var core: Core? = null
     private var account: Account? = null
@@ -114,7 +127,18 @@ object LinphoneManager {
                 }
             })
 
+            // Identidade estável do aparelho (+sip.instance). Sem arquivo de
+            // configuração o liblinphone gera uma nova a cada abertura; ele lê
+            // [misc] uuid logo antes de iniciar, então basta reaplicar a salva.
+            val savedUuid = com.rrpsystems.rrphone.core.settings.SettingsStore.instanceUuid
+            if (savedUuid.isNotEmpty()) c.config.setString("misc", "uuid", savedUuid)
+
             c.start()
+            if (savedUuid.isEmpty()) {
+                c.config.getString("misc", "uuid", null)?.let {
+                    com.rrpsystems.rrphone.core.settings.SettingsStore.instanceUuid = it
+                }
+            }
             setAudioCodecsOrder(Codecs.supported)
             configureG729()
             Log.i(TAG, "Core iniciado (liblinphone ${c.version}) | codecs: " +
@@ -126,11 +150,54 @@ object LinphoneManager {
 
     // --- Conta -----------------------------------------------------------
 
-    /** Configura/substitui a conta única e registra. Aplica também DTMF e codecs do perfil. */
+    /**
+     * Configura/substitui a conta única e registra. Aplica também DTMF e codecs
+     * do perfil. Antes, cancela o registro da conta anterior: com validade de
+     * 7 dias, remover a conta sem isso deixaria o ramal antigo apontando para
+     * este celular no PBX por uma semana.
+     */
     fun applyAccount(profile: AccountProfile) {
-        val c = core ?: return
+        if (core == null) return
+        // Já em Progress: quem espera pelo registro (login) não pode ler o Ok
+        // da conta anterior como se fosse o da nova.
+        _registration.value = Registration.Progress
+        pendingApply?.cancel()
+        pendingApply = scope.launch {
+            unregister()
+            configure(profile)
+        }
+    }
+
+    /**
+     * Cancela o registro no servidor (REGISTER com validade 0) e só então
+     * remove a conta e as credenciais — o cancelamento também passa pelo
+     * desafio 401, e sem a senha ele não teria como autenticar. Sem rede, desiste
+     * em alguns segundos e remove localmente mesmo assim.
+     */
+    suspend fun unregister() {
+        val acc = account
+        if (acc != null && acc.state in listOf(
+                RegistrationState.Ok, RegistrationState.Progress, RegistrationState.Refreshing)
+        ) {
+            val params = acc.params.clone()
+            params.isRegisterEnabled = false
+            acc.params = params
+            Log.i(TAG, "Cancelando o registro de ${params.identityAddress?.asStringUriOnly()}")
+            kotlinx.coroutines.withTimeoutOrNull(5_000) {
+                while (acc.state != RegistrationState.Cleared && acc.state != RegistrationState.None &&
+                    acc.state != RegistrationState.Failed
+                ) {
+                    kotlinx.coroutines.delay(100)
+                }
+            } ?: Log.w(TAG, "Sem resposta ao cancelar o registro; removendo a conta mesmo assim")
+        }
         clearAccount()
+    }
+
+    private fun configure(profile: AccountProfile) {
+        val c = core ?: return
         val factory = Factory.instance()
+        _registration.value = Registration.Progress
 
         val identity = factory.createAddress("sip:${profile.username}@${hostOf(profile.domain)}")
         val server = factory.createAddress("sip:${profile.domain};transport=${profile.transport.lowercase()}")
@@ -140,27 +207,27 @@ object LinphoneManager {
         }
         if (profile.displayName.isNotBlank()) identity.displayName = profile.displayName
 
+        val proxyUri = com.rrpsystems.rrphone.core.settings.normalizeProxyUri(profile.effectiveProxy)
+        val proxy = if (proxyUri.isNotEmpty()) factory.createAddress(proxyUri) else null
+        if (proxyUri.isNotEmpty() && proxy == null) {
+            _registration.value = Registration.Failed("Proxy de saída inválido")
+            return
+        }
+
         val params = c.createAccountParams()
         params.identityAddress = identity
-        params.serverAddress = server
+        // Com proxy (Flexisip), ele é o "servidor" da conta e a rota única de
+        // tudo: o liblinphone manda o REGISTER sempre para o servidor da conta
+        // e ignora a lista de rotas nele (Account::registerAccount), então
+        // rotas sozinhas deixavam o registro indo direto ao PBX, sem push. O
+        // domínio continua o do ramal (identidade e Request-URI), e o Flexisip
+        // repassa ao PBX.
+        params.serverAddress = proxy ?: server
+        params.isOutboundProxyEnabled = proxy != null
         params.isRegisterEnabled = true
-        // Validade curta de propósito (igual ao desktop): contatos órfãos de um
-        // processo morto somem logo, em vez de acumular até o PBX responder 403.
-        params.expires = 300
+        params.expires = if (profile.pushEnabled) EXPIRES_WITH_PUSH else EXPIRES_DIRECT
 
-        // Proxy de saída como rota, não setOutboundProxyEnabled: aquele trata o
-        // próprio registrador como proxy; aqui o proxy (Flexisip) é um salto à
-        // parte na frente do PBX, e o REGISTER continua endereçado ao domínio.
-        val proxyUri = com.rrpsystems.rrphone.core.settings.normalizeProxyUri(profile.effectiveProxy)
-        if (proxyUri.isNotEmpty()) {
-            val route = factory.createAddress(proxyUri)
-            if (route == null) {
-                _registration.value = Registration.Failed("Proxy de saída inválido")
-                return
-            }
-            params.setRoutesAddresses(arrayOf(route))
-            Log.i(TAG, "Proxy de saída: $proxyUri")
-        }
+        if (proxy != null) Log.i(TAG, "Proxy de saída: $proxyUri")
         // Os parâmetros de push (pn-prid, pn-provider...) só vão no REGISTER com
         // o push ligado: sem o Flexisip no caminho, ninguém os usaria.
         params.pushNotificationAllowed = profile.pushEnabled
@@ -179,7 +246,8 @@ object LinphoneManager {
         val codecs = profile.codecs.mapNotNull { Codecs.findByName(it) }
         if (codecs.isNotEmpty()) setAudioCodecsOrder(codecs)
         Log.i(TAG, "Conta configurada: ${profile.username}@${profile.domain} via ${profile.transport}" +
-            (if (proxyUri.isNotEmpty()) " | proxy $proxyUri" else "") + " | push: ${profile.pushEnabled}")
+            (if (proxyUri.isNotEmpty()) " | proxy $proxyUri" else "") + " | push: ${profile.pushEnabled}" +
+            " | validade: ${params.expires}s")
     }
 
     fun clearAccount() {

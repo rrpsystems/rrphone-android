@@ -37,6 +37,7 @@ import com.rrpsystems.rrphone.ui.components.TabScaffold
 import com.rrpsystems.rrphone.ui.components.rememberProfileExporter
 import com.rrpsystems.rrphone.ui.components.rememberProfileImporter
 import com.rrpsystems.rrphone.ui.theme.Rrp
+import kotlinx.coroutines.launch
 
 /**
  * Ajustes — o equivalente mobile da janela de Configurações do desktop:
@@ -449,11 +450,14 @@ private fun AboutSection() {
 @Composable
 private fun LogoutSection(onLoggedOut: () -> Unit) {
     var confirm by remember { mutableStateOf(false) }
+    var leaving by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
     OutlinedButton(
         onClick = { confirm = true },
         modifier = Modifier.fillMaxWidth(),
-        colors = ButtonDefaults.outlinedButtonColors(contentColor = Rrp.Red)
-    ) { Text("Sair da conta") }
+        colors = ButtonDefaults.outlinedButtonColors(contentColor = Rrp.Red),
+        enabled = !leaving,
+    ) { Text(if (leaving) "Saindo..." else "Sair da conta") }
     if (confirm) {
         AlertDialog(
             onDismissRequest = { confirm = false },
@@ -463,11 +467,16 @@ private fun LogoutSection(onLoggedOut: () -> Unit) {
             confirmButton = {
                 TextButton(onClick = {
                     confirm = false
+                    leaving = true
                     CallManager.hangUp()
-                    LinphoneManager.clearAccount()
-                    SettingsStore.clearProfile()
-                    ContactsRepository.setUrl("")
-                    onLoggedOut()
+                    // Cancela o registro no PBX antes de esquecer a conta: com
+                    // push, ele valeria 7 dias e o celular seguiria tocando.
+                    scope.launch {
+                        LinphoneManager.unregister()
+                        SettingsStore.clearProfile()
+                        ContactsRepository.setUrl("")
+                        onLoggedOut()
+                    }
                 }) { Text("Sair", color = Rrp.Red) }
             },
             dismissButton = { TextButton(onClick = { confirm = false }) { Text("Cancelar") } },
