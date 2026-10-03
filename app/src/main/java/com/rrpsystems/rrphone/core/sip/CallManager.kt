@@ -829,7 +829,16 @@ object CallManager {
         val audio = ctx.getSystemService(Context.AUDIO_SERVICE) as AudioManager
         try {
             if (audio.ringerMode == AudioManager.RINGER_MODE_NORMAL) {
+                // Em loop até atender ou desistir: sozinho, o Ringtone toca o
+                // arquivo uma vez só (os "dois toques" e depois silêncio).
                 ringtone = RingtoneManager.getRingtone(ctx, RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE))
+                    ?.apply {
+                        isLooping = true
+                        audioAttributes = android.media.AudioAttributes.Builder()
+                            .setUsage(android.media.AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
+                            .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                            .build()
+                    }
                 ringtone?.play()
             }
             if (audio.ringerMode != AudioManager.RINGER_MODE_SILENT) {

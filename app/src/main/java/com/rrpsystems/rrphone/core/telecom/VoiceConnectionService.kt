@@ -47,19 +47,23 @@ class VoiceConnectionService : ConnectionService() {
     }
 
     private fun showIncomingCallNotification(caller: String) {
-        val channelId = "rrphone_incoming_calls"
+        // Canal sem som nem vibração: o toque (em loop) e a vibração são do
+        // CallManager; o som do canal só se somaria a eles. O som de um canal
+        // não muda depois de criado, por isso um id novo e o antigo removido.
+        val channelId = "rrphone_incoming_calls_v2"
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                channelId,
-                "Chamadas Recebidas",
-                NotificationManager.IMPORTANCE_HIGH
-            ).apply {
-                description = "Notificações de chamadas SIP"
-            }
-            notificationManager.createNotificationChannel(channel)
+        notificationManager.deleteNotificationChannel("rrphone_incoming_calls")
+        val channel = NotificationChannel(
+            channelId,
+            "Chamadas recebidas",
+            NotificationManager.IMPORTANCE_HIGH
+        ).apply {
+            description = "Ligações recebidas no ramal"
+            setSound(null, null)
+            enableVibration(false)
+            lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
         }
+        notificationManager.createNotificationChannel(channel)
 
         // Intent para tela cheia (quando bloqueado)
         val fullScreenIntent = Intent(this, IncomingCallActivity::class.java).apply {
