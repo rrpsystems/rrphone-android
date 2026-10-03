@@ -200,7 +200,8 @@ object LinphoneManager {
         _registration.value = Registration.Progress
 
         val identity = factory.createAddress("sip:${profile.username}@${hostOf(profile.domain)}")
-        val server = factory.createAddress("sip:${profile.domain};transport=${profile.transport.lowercase()}")
+        val server = factory.createAddress(
+            "sip:${com.rrpsystems.rrphone.core.settings.sipServerHostPort(profile.domain, profile.transport)};transport=${profile.transport.lowercase()}")
         if (identity == null || server == null) {
             _registration.value = Registration.Failed("Endereço SIP inválido")
             return

@@ -14,6 +14,16 @@ class ProxyUriTest {
     }
 
     @Test
+    fun serverWithoutPortGetsRrpDefault() {
+        assertEquals("pbx.exemplo.com:5090", sipServerHostPort("pbx.exemplo.com", "tcp"))
+        assertEquals("pbx.exemplo.com:5090", sipServerHostPort(" pbx.exemplo.com ", "udp"))
+        assertEquals("pbx.exemplo.com:5091", sipServerHostPort("pbx.exemplo.com", "tls"))
+        assertEquals("pbx.exemplo.com:5060", sipServerHostPort("pbx.exemplo.com:5060", "tcp"))
+        assertEquals("10.0.0.5:5090", sipServerHostPort("10.0.0.5", "tcp"))
+        assertEquals("", sipServerHostPort("", "tcp"))
+    }
+
+    @Test
     fun pushOnIgnoresCustomProxy() {
         assertEquals(com.rrpsystems.rrphone.BuildConfig.RRP_PUSH_PROXY, AccountProfile(pushEnabled = true, outboundProxy = "sbc.cliente").effectiveProxy)
         assertEquals("sbc.cliente", AccountProfile(pushEnabled = false, outboundProxy = "sbc.cliente").effectiveProxy)

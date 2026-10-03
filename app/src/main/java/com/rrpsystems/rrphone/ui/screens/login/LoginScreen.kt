@@ -38,7 +38,7 @@ fun LoginScreen(
     var domain by remember { mutableStateOf("") }
     var extension by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    var transport by remember { mutableStateOf("udp") }
+    var transport by remember { mutableStateOf("tcp") }
     var pushEnabled by remember { mutableStateOf(true) }
     var outboundProxy by remember { mutableStateOf("") }
     val importProfile = rememberProfileImporter(
@@ -114,6 +114,8 @@ fun LoginScreen(
                     value = domain,
                     onValueChange = { domain = it },
                     label = { Text("Domínio / Servidor") },
+                    placeholder = { Text("sip.exemplo.com[:porta]") },
+                    supportingText = { Text("Sem porta, usa 5090 (TLS: 5091)") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp)

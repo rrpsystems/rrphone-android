@@ -187,7 +187,8 @@ private fun AccountSection(profile: AccountProfile, onSave: (AccountProfile) -> 
             modifier = Modifier.fillMaxWidth()
         )
         OutlinedTextField(domain, { domain = it }, label = { Text("Servidor SIP") },
-            placeholder = { Text("sip.exemplo.com[:porta]") }, singleLine = true,
+            placeholder = { Text("sip.exemplo.com[:porta]") },
+            supportingText = { Text("Sem porta, usa 5090 (TLS: 5091)") }, singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri), modifier = Modifier.fillMaxWidth())
         TransportSelector(transport) { transport = it }
         PushProxyFields(

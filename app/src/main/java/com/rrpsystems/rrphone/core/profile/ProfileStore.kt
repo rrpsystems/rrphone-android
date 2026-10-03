@@ -87,7 +87,7 @@ object ProfileStore {
             username = account.optString("username"),
             password = account.optString("password"),
             domain = account.optString("domain"),
-            transport = account.optString("transport").ifBlank { "udp" },
+            transport = account.optString("transport").ifBlank { "tcp" },
             dtmfMethod = account.optString("dtmfMethod").ifBlank { "rfc2833" },
             contactsUrl = account.optString("contactsUrl"),
             // Sem a chave (arquivo do desktop, ou anterior a ela): push ligado,

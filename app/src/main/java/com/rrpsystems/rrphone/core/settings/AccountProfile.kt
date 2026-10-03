@@ -9,9 +9,10 @@ data class AccountProfile(
     val displayName: String = "",
     val username: String = "",
     val password: String = "",
-    // Servidor SIP, opcionalmente com porta: "sip.exemplo.com" ou "sip.exemplo.com:5090".
+    // Servidor SIP, opcionalmente com porta: "sip.exemplo.com" ou "sip.exemplo.com:5060".
+    // Sem porta vale a padrão da RRP (ver sipServerHostPort).
     val domain: String = "",
-    val transport: String = "udp",      // "udp" | "tcp" | "tls"
+    val transport: String = "tcp",      // "udp" | "tcp" | "tls"
     val dtmfMethod: String = "rfc2833", // "rfc2833" | "info" | "inband"
     val contactsUrl: String = "",
     // Push ligado: registro e chamadas passam pelo Flexisip da RRP
@@ -45,6 +46,16 @@ data class CodecInfo(
  * O G.729 vem da libmsbcg729.so do próprio app (ver core/sip/G729.kt): o
  * pacote do liblinphone publicado no Maven não traz o bcg729.
  */
+/**
+ * Servidor com a porta explícita. Sem porta, vale o padrão dos PBX da RRP —
+ * 5090 (UDP/TCP) e 5091 (TLS) —, não o 5060/5061 do SIP. Igual ao desktop.
+ */
+fun sipServerHostPort(domain: String, transport: String): String {
+    val d = domain.trim()
+    if (d.isEmpty() || Regex(":\\d+$").containsMatchIn(d)) return d
+    return "$d:${if (transport.equals("tls", ignoreCase = true)) 5091 else 5090}"
+}
+
 /**
  * "push.exemplo.com" vira "sip:push.exemplo.com;transport=tls". Uma URI
  * sip:/sips: completa fica como foi digitada. TLS é o padrão porque é o que um

@@ -47,7 +47,7 @@ object SettingsStore {
             username = username,
             password = password,
             domain = prefs.getString("domain", "") ?: "",
-            transport = prefs.getString("transport", "udp") ?: "udp",
+            transport = prefs.getString("transport", "tcp") ?: "tcp",
             dtmfMethod = prefs.getString("dtmfMethod", "rfc2833") ?: "rfc2833",
             contactsUrl = prefs.getString("contactsUrl", "") ?: "",
             // Conta gravada antes da chave de push existir: continua registrando
