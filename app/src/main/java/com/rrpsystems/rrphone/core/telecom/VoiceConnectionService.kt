@@ -65,10 +65,11 @@ class VoiceConnectionService : ConnectionService() {
         }
         notificationManager.createNotificationChannel(channel)
 
-        // Intent para tela cheia (quando bloqueado)
-        val fullScreenIntent = Intent(this, IncomingCallActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-            putExtra("CALLER_NAME", caller)
+        // Tela cheia (aparelho bloqueado ou app fechado): a mesma tela de
+        // chamada do app aberto, sobre o bloqueio enquanto a chamada existir.
+        val fullScreenIntent = Intent(this, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
+            action = MainActivity.ACTION_SHOW_CALL
         }
         val fullScreenPendingIntent = PendingIntent.getActivity(
             this, 0,
@@ -106,9 +107,10 @@ class VoiceConnectionService : ConnectionService() {
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setCategory(NotificationCompat.CATEGORY_CALL)
             .setFullScreenIntent(fullScreenPendingIntent, true)
+            .setContentIntent(fullScreenPendingIntent)
             .setOngoing(true)
 
-        notificationManager.notify(1001, notificationBuilder.build())
+        notificationManager.notify(CallManager.INCOMING_NOTIFICATION_ID, notificationBuilder.build())
     }
 
     override fun onCreateOutgoingConnection(

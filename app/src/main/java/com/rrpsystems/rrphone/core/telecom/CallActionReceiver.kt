@@ -15,7 +15,7 @@ class CallActionReceiver : BroadcastReceiver() {
                 
                 // Remove a notificação da barra superior
                 val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-                notificationManager.cancel(1001)
+                notificationManager.cancel(CallManager.INCOMING_NOTIFICATION_ID)
             }
         }
     }

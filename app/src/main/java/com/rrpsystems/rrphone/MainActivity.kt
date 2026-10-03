@@ -18,6 +18,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -25,6 +27,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.rememberNavController
 import com.rrpsystems.rrphone.core.sip.CallManager
+import com.rrpsystems.rrphone.core.sip.CallPhase
 import com.rrpsystems.rrphone.core.telecom.TelecomHelper
 import com.rrpsystems.rrphone.ui.navigation.AppNavGraph
 import com.rrpsystems.rrphone.ui.screens.login.LoginViewModel
@@ -33,6 +36,8 @@ import com.rrpsystems.rrphone.ui.theme.RRPhoneTheme
 class MainActivity : ComponentActivity() {
     companion object {
         var isAppInForeground = false
+        /** Abre o app na tela de chamada (chamada recebida em tela cheia). */
+        const val ACTION_SHOW_CALL = "com.rrpsystems.rrphone.ACTION_SHOW_CALL"
     }
 
     // Microfone e notificações logo na primeira abertura: pedir só na hora de
@@ -73,6 +78,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        applyLockScreenMode(CallManager.ui.value.phase)
         handleCallIntent(intent)
     }
 
@@ -80,26 +86,17 @@ class MainActivity : ComponentActivity() {
         if (intent?.action == "com.rrpsystems.rrphone.ACTION_ANSWER_CALL") {
             CallManager.answer()
             val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            notificationManager.cancel(1001)
+            notificationManager.cancel(CallManager.INCOMING_NOTIFICATION_ID)
         }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // Já na criação (aberta pela tela cheia de uma chamada recebida): a tela
+        // precisa acender agora, não um quadro depois.
+        applyLockScreenMode(CallManager.ui.value.phase)
         handleCallIntent(intent)
-
-        // Acender a tela e aparecer sobre o bloqueio quando aberta por uma chamada.
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
-            setShowWhenLocked(true)
-            setTurnScreenOn(true)
-        } else {
-            @Suppress("DEPRECATION")
-            window.addFlags(
-                WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
-                    WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
-            )
-        }
 
         TelecomHelper.registerPhoneAccount(applicationContext)
         requestMissingPermissions()
@@ -111,10 +108,15 @@ class MainActivity : ComponentActivity() {
         )
         setContent {
             RRPhoneTheme {
+                // Sobre o bloqueio só enquanto houver chamada, como o discador do
+                // sistema: acende a tela ao tocar e, quando a chamada acaba, o
+                // bloqueio volta — o resto do app nunca fica exposto sem senha.
+                val ui by CallManager.ui.collectAsState()
+                LaunchedEffect(ui.phase) { applyLockScreenMode(ui.phase) }
                 val loginViewModel: LoginViewModel = viewModel()
                 val navController = rememberNavController()
                 AppNavGraph(navController = navController, loginViewModel = loginViewModel)
-                if (fullScreenMissing && !fullScreenAsked) {
+                if (fullScreenMissing && !fullScreenAsked && ui.phase == CallPhase.Idle) {
                     AlertDialog(
                         onDismissRequest = { fullScreenAsked = true; fullScreenMissing = false },
                         title = { Text("Ligações com a tela apagada") },
@@ -130,6 +132,14 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    private fun applyLockScreenMode(phase: CallPhase) {
+        val inCall = phase != CallPhase.Idle
+        setShowWhenLocked(inCall)
+        setTurnScreenOn(phase == CallPhase.Incoming)
+        if (inCall) window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        else window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
     }
 
     private fun requestMissingPermissions() {

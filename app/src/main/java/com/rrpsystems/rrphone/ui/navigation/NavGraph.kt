@@ -6,6 +6,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -49,11 +52,19 @@ fun AppNavGraph(
     }
 
     // A tela de chamada segue o estado real: abre quando uma chamada nasce
-    // (efetuada ou recebida) e fecha quando não sobra nenhuma.
+    // (efetuada ou recebida), quando uma recebida é atendida por fora (pela
+    // notificação, com a tela apagada) e quando o app abre já em chamada; e
+    // fecha quando não sobra nenhuma. Voltar às abas no meio da chamada é
+    // escolha do usuário e não é desfeito aqui.
+    var lastPhase by remember { mutableStateOf<CallPhase?>(null) }
     LaunchedEffect(ui.phase) {
         val route = navController.currentDestination?.route
+        val previous = lastPhase
+        lastPhase = ui.phase
+        val justStarted = previous == null || previous == CallPhase.Incoming
         when {
-            (ui.phase == CallPhase.Incoming || ui.phase == CallPhase.Outgoing) && route in tabRoutes -> openCall()
+            ui.phase != CallPhase.Idle && route in tabRoutes &&
+                (ui.phase == CallPhase.Incoming || ui.phase == CallPhase.Outgoing || justStarted) -> openCall()
             ui.phase == CallPhase.Idle && route in callRoutes -> {
                 if (!navController.popBackStack(Route.Dialer.route, inclusive = false)) {
                     navController.navigate(Route.Dialer.route)

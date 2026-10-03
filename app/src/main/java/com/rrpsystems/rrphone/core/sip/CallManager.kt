@@ -100,6 +100,8 @@ data class CallUiState(
  */
 object CallManager {
     private const val TAG = "CallManager"
+    // Notificação de chamada recebida (VoiceConnectionService posta, o CallManager tira).
+    const val INCOMING_NOTIFICATION_ID = 1001
     private const val WAITING_NOTIFICATION_ID = 1002
 
     private val _ui = MutableStateFlow(CallUiState())
@@ -222,7 +224,7 @@ object CallManager {
     fun answer() {
         val call = activeCall ?: return
         if (call.state == Call.State.IncomingReceived || call.state == Call.State.IncomingEarlyMedia) {
-            stopRinging()
+            stopIncomingAlert()
             call.accept()
         }
     }
@@ -230,7 +232,7 @@ object CallManager {
     /** Recusar uma chamada recebida (a primeira; a em espera usa [declineWaitingCall]). */
     fun decline() {
         val call = activeCall ?: return
-        stopRinging()
+        stopIncomingAlert()
         tracks[id(call)]?.note = "recusada"
         call.decline(Reason.Declined)
     }
@@ -469,7 +471,7 @@ object CallManager {
                 tracks[callId]?.answered = true
                 if (isConsultation) consultationAnswered = true
                 if (same(call, activeCall)) {
-                    stopRinging()
+                    stopIncomingAlert()
                     currentVoiceConnection?.setActive()
                 }
                 if (state == Call.State.StreamsRunning) logMedia(core, call)
@@ -584,7 +586,7 @@ object CallManager {
         }
         if (same(call, activeCall)) {
             activeCall = null
-            stopRinging()
+            stopIncomingAlert()
             transferCompleting = false
             when {
                 // Terminar a chamada para a qual se alternou devolve a outra,
@@ -617,7 +619,7 @@ object CallManager {
     /** Sem nenhuma chamada: encerra a conexão do sistema e zera o mudo. */
     private fun endSessionIfIdle() {
         if (activeCall != null || heldCall != null || waitingCall != null || consultationCall != null) return
-        stopRinging()
+        stopIncomingAlert()
         currentVoiceConnection?.let {
             it.setDisconnected(DisconnectCause(DisconnectCause.LOCAL))
             it.destroy()
@@ -852,6 +854,19 @@ object CallManager {
             }
         } catch (e: Exception) {
             Log.e(TAG, "Erro ao tocar", e)
+        }
+    }
+
+    /**
+     * Fim do "chamando": para o toque e tira a notificação de chamada recebida.
+     * A notificação fica presa se ninguém a remove (atendida pela tela cheia,
+     * ou quem ligou desistiu), e na ligação seguinte o Android só a atualiza —
+     * atualização não abre a tela cheia, então a tela não acende mais.
+     */
+    private fun stopIncomingAlert() {
+        stopRinging()
+        appContext?.let {
+            (it.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).cancel(INCOMING_NOTIFICATION_ID)
         }
     }
 

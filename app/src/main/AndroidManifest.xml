@@ -38,15 +38,6 @@
             </intent-filter>
         </activity>
 
-        <activity
-            android:name=".core.telecom.IncomingCallActivity"
-            android:exported="false"
-            android:showOnLockScreen="true"
-            android:turnScreenOn="true"
-            android:launchMode="singleTop"
-            android:theme="@style/Theme.RRPhone">
-        </activity>
-
         <receiver android:name=".core.telecom.CallActionReceiver" android:exported="false" />
 
         <service
