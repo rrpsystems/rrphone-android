@@ -15,6 +15,13 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_PHONE_CALL" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
 
+    <!-- O Linphone SDK declara câmera e sincronização de dados (vídeo e envio
+         de arquivos), que este app não usa: fora, para o Play não pedir
+         justificativa de permissões que nunca são usadas. -->
+    <uses-permission android:name="android.permission.CAMERA" tools:node="remove" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA" tools:node="remove" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" tools:node="remove" />
+
     <application
         android:name=".RRPApplication"
         android:allowBackup="false"
@@ -39,6 +46,15 @@
         </activity>
 
         <receiver android:name=".core.telecom.CallActionReceiver" android:exported="false" />
+
+        <!-- Push do Flexisip: cada push vira um REGISTER novo (ver PushService). -->
+        <service
+            android:name=".core.telecom.PushService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
 
         <service
             android:name=".core.telecom.CallForegroundService"
