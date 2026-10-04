@@ -843,14 +843,33 @@ object CallManager {
                     }
                 ringtone?.play()
             }
-            if (audio.ringerMode != AudioManager.RINGER_MODE_SILENT) {
+            // Como o discador do sistema: no modo vibrar, sempre; no modo normal,
+            // conforme "Vibrar para chamadas" do aparelho.
+            val vibrateWhenRinging = android.provider.Settings.System.getInt(
+                ctx.contentResolver, "vibrate_when_ringing", 1
+            ) != 0
+            if (audio.ringerMode == AudioManager.RINGER_MODE_VIBRATE ||
+                (audio.ringerMode == AudioManager.RINGER_MODE_NORMAL && vibrateWhenRinging)
+            ) {
                 vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                     (ctx.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager).defaultVibrator
                 } else {
                     @Suppress("DEPRECATION")
                     ctx.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
                 }
-                vibrator?.vibrate(VibrationEffect.createWaveform(longArrayOf(0, 800, 1200), 0))
+                // Marcada como toque de chamada: sem isso o Android descarta a
+                // vibração de app em segundo plano (o caso de quase toda
+                // chamada recebida, com a tela apagada).
+                val pattern = VibrationEffect.createWaveform(longArrayOf(0, 800, 1200), 0)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    vibrator?.vibrate(pattern, android.os.VibrationAttributes.createForUsage(android.os.VibrationAttributes.USAGE_RINGTONE))
+                } else {
+                    @Suppress("DEPRECATION")
+                    vibrator?.vibrate(pattern, android.media.AudioAttributes.Builder()
+                        .setUsage(android.media.AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
+                        .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                        .build())
+                }
             }
         } catch (e: Exception) {
             Log.e(TAG, "Erro ao tocar", e)
