@@ -128,6 +128,8 @@ object CallManager {
     private var activeCall: Call? = null        // chamada A, em primeiro plano
     private var heldCall: Call? = null          // estacionada, durante chamada em espera
     private var waitingCall: Call? = null       // segunda chamada tocando, ainda sem decisão
+    // O usuário escolheu a saída de áudio nesta chamada (não mexer mais nela).
+    private var routeChosenByUser = false
     private var consultationCall: Call? = null  // chamada C, só durante a transferência
     // Conferência local a três (o áudio é misturado no aparelho). Enquanto
     // existe, activeCall e heldCall são os dois participantes. É do Core.
@@ -167,7 +169,11 @@ object CallManager {
                 handleCallState(core, call, state, message)
             }
 
-            override fun onAudioDevicesListUpdated(core: Core) = publish()
+            override fun onAudioDevicesListUpdated(core: Core) {
+                // Fone Bluetooth ligado no meio da chamada: o áudio vai para ele.
+                preferBluetooth(core)
+                publish()
+            }
             override fun onAudioDeviceChanged(core: Core, audioDevice: AudioDevice) = publish()
         })
     }
@@ -285,6 +291,31 @@ object CallManager {
     }
 
     fun setAudioRoute(route: AudioRoute) {
+        // Escolha do usuário: vale até o fim da chamada, mesmo que um fone
+        // Bluetooth se conecte depois.
+        routeChosenByUser = true
+        routeTo(route)
+    }
+
+    /**
+     * Com um fone/carro Bluetooth conectado, a chamada começa nele, como no
+     * discador do sistema. Sem isto o liblinphone abre o microfone no fone mas
+     * toca no alto-falante de ouvido do aparelho — e, para casar os dois, troca
+     * o microfone também para o do aparelho: o Bluetooth fica mudo.
+     */
+    private fun preferBluetooth(core: Core) {
+        if (routeChosenByUser) return
+        val call = activeCall ?: core.currentCall ?: return
+        val hasBluetooth = core.audioDevices.any {
+            it.type == AudioDevice.Type.Bluetooth && it.hasCapability(AudioDevice.Capabilities.CapabilityPlay)
+        }
+        if (hasBluetooth && call.outputAudioDevice?.type != AudioDevice.Type.Bluetooth) {
+            Log.i(TAG, "[audio] fone Bluetooth conectado: levando a chamada para ele")
+            routeTo(AudioRoute.Bluetooth)
+        }
+    }
+
+    private fun routeTo(route: AudioRoute) {
         val core = LinphoneManager.coreOrNull() ?: return
         val call = activeCall ?: core.currentCall ?: return
         val output = core.audioDevices.firstOrNull {
@@ -463,7 +494,11 @@ object CallManager {
             Call.State.IncomingReceived -> onIncoming(core, call)
 
             Call.State.OutgoingInit, Call.State.OutgoingProgress -> activeLabels[callId] = "Chamando..."
-            Call.State.OutgoingRinging, Call.State.OutgoingEarlyMedia -> activeLabels[callId] = "Tocando..."
+            Call.State.OutgoingRinging, Call.State.OutgoingEarlyMedia -> {
+                activeLabels[callId] = "Tocando..."
+                // O tom de chamando já sai pelo fone, se houver.
+                if (state == Call.State.OutgoingEarlyMedia && same(call, activeCall)) preferBluetooth(core)
+            }
 
             Call.State.Connected, Call.State.StreamsRunning -> {
                 if (!connectedAt.containsKey(callId)) connectedAt[callId] = SystemClock.elapsedRealtime()
@@ -475,6 +510,7 @@ object CallManager {
                     currentVoiceConnection?.setActive()
                 }
                 if (state == Call.State.StreamsRunning) logMedia(core, call)
+                if (same(call, activeCall)) preferBluetooth(core)
             }
 
             Call.State.Pausing, Call.State.Paused -> activeLabels[callId] = "Em espera"
@@ -625,6 +661,7 @@ object CallManager {
             it.destroy()
         }
         currentVoiceConnection = null
+        routeChosenByUser = false
         if (muted) {
             muted = false
             LinphoneManager.coreOrNull()?.isMicEnabled = true

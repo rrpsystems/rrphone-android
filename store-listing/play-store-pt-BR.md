@@ -97,7 +97,7 @@ contato@rrpsystems.com.br para o servidor de push).
 |---|---|---|---|---|
 | Áudio — gravações de voz ou som | Não armazenado; transmitido em tempo real durante a chamada | Não | Funcionalidade do app | Não |
 | Identificadores do dispositivo ou outros IDs (token de push do Firebase) | Sim | Não (enviado ao servidor de push da própria RRP) | Funcionalidade do app | Sim (chave "Receber chamadas com o app fechado") |
-| Informações do app e desempenho — registros de falha | Não | Não | — | — |
+| Informações do app e desempenho — registros de falha e diagnóstico | Sim, só quando o usuário toca em Ajustes → Diagnóstico → Enviar e escolhe o app (e-mail para suporte@rrpsystems.com.br) | Não | Análise de problemas (suporte) | Sim |
 | Contatos | Não (a agenda vem do servidor da empresa e fica no aparelho) | Não | — | — |
 
 Observação: o Play considera "coleta" o que sai do aparelho para um servidor

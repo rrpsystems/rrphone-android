@@ -15,6 +15,9 @@ class RRPApplication : Application() {
         Log.i("RRPApplication", "Inicializando RRPApplication e serviços globais.")
 
         SettingsStore.init(this)
+        // Logo depois das preferências: grava travamentos a partir daqui e
+        // decide se o liblinphone registra em arquivo.
+        com.rrpsystems.rrphone.core.diagnostics.Diagnostics.init(this)
         CallHistoryStore.init(this)
         ContactsRepository.init(this)
 

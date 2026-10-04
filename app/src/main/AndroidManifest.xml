@@ -50,6 +50,17 @@
 
         <receiver android:name=".core.telecom.CallActionReceiver" android:exported="false" />
 
+        <!-- Entrega o .zip de diagnóstico ao app que o usuário escolher. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.diagnostico"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/diagnostico_paths" />
+        </provider>
+
         <!-- Push do Flexisip: cada push vira um REGISTER novo (ver PushService). -->
         <service
             android:name=".core.telecom.PushService"

@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.rrpsystems.rrphone.BuildConfig
 import com.rrpsystems.rrphone.core.contacts.ContactsRepository
+import com.rrpsystems.rrphone.core.diagnostics.Diagnostics
 import com.rrpsystems.rrphone.core.settings.AccountProfile
 import com.rrpsystems.rrphone.core.settings.CodecInfo
 import com.rrpsystems.rrphone.core.settings.SettingsStore
@@ -94,6 +95,7 @@ fun SettingsScreen(
                 ContactsRepository.setUrl(updated.contactsUrl)
             }
             ProfileSection(onImport = importer, onExport = exporter)
+            DiagnosticsSection(onMessage = { message = it })
             AboutSection()
             LogoutSection(onLoggedOut)
             Spacer(Modifier.height(8.dp))
@@ -436,6 +438,80 @@ private fun ProfileSection(onImport: () -> Unit, onExport: (String) -> Unit) {
             message = "Quem for importar vai precisar desta senha. Envie-a por outro canal, não junto com o arquivo.",
             onConfirm = { askPassphrase = false; onExport(it) },
             onDismiss = { askPassphrase = false },
+        )
+    }
+}
+
+/**
+ * Diagnóstico para o suporte: liga o registro detalhado, o usuário reproduz o
+ * problema e envia o pacote pelo app que quiser. Ver core/diagnostics.
+ */
+@Composable
+private fun DiagnosticsSection(onMessage: (String) -> Unit) {
+    val enabled by Diagnostics.enabled.collectAsState()
+    var sending by remember { mutableStateOf(false) }
+    var confirmClear by remember { mutableStateOf(false) }
+    // Recalculado a cada recomposição relevante: muda ao ligar, enviar e limpar.
+    var refresh by remember { mutableIntStateOf(0) }
+    val crashes = remember(refresh, enabled) { Diagnostics.crashCount() }
+    val hasContent = remember(refresh, enabled) { Diagnostics.hasContent() }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val scope = rememberCoroutineScope()
+    val until = remember(enabled) {
+        java.text.SimpleDateFormat("dd/MM 'às' HH:mm", java.util.Locale("pt", "BR"))
+            .format(java.util.Date(Diagnostics.enabledUntil()))
+    }
+
+    Section("Diagnóstico") {
+        SwitchRow(
+            "Registro detalhado",
+            if (enabled) "Ligado até $until. Reproduza o problema e toque em Enviar."
+            else "Grava os detalhes das chamadas e do registro para o suporte analisar. Desliga sozinho em 7 dias.",
+            enabled,
+        ) { Diagnostics.setEnabled(it); refresh++ }
+        if (crashes > 0) {
+            Hint("$crashes falha(s) do app registrada(s) neste aparelho.")
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Button(
+                onClick = {
+                    sending = true
+                    scope.launch {
+                        try {
+                            val zip = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                                Diagnostics.buildReport()
+                            }
+                            context.startActivity(Diagnostics.shareIntent(zip))
+                        } catch (e: Exception) {
+                            onMessage("Não foi possível montar o diagnóstico: ${e.message}")
+                        } finally {
+                            sending = false
+                        }
+                    }
+                },
+                enabled = hasContent && !sending,
+                modifier = Modifier.weight(1f),
+            ) { Text(if (sending) "Preparando..." else "Enviar...") }
+            OutlinedButton(
+                onClick = { confirmClear = true },
+                enabled = hasContent && !sending,
+                modifier = Modifier.weight(1f),
+            ) { Text("Limpar") }
+        }
+        Hint("O pacote leva o histórico técnico do app (números discados, servidor, horários) " +
+            "e nunca a senha. Só sai do aparelho quando você toca em Enviar e escolhe o app.")
+    }
+
+    if (confirmClear) {
+        AlertDialog(
+            onDismissRequest = { confirmClear = false },
+            containerColor = Rrp.Panel,
+            title = { Text("Limpar diagnóstico") },
+            text = { Text("Apaga os registros e falhas gravados neste aparelho.") },
+            confirmButton = {
+                TextButton(onClick = { Diagnostics.clear(); confirmClear = false; refresh++ }) { Text("Limpar") }
+            },
+            dismissButton = { TextButton(onClick = { confirmClear = false }) { Text("Cancelar") } },
         )
     }
 }

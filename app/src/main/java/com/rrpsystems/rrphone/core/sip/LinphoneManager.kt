@@ -15,7 +15,6 @@ import org.linphone.core.Core
 import org.linphone.core.CoreListenerStub
 import org.linphone.core.Factory
 import org.linphone.core.GlobalState
-import org.linphone.core.LogCollectionState
 import org.linphone.core.Reason
 import org.linphone.core.RegistrationState
 
@@ -57,8 +56,6 @@ object LinphoneManager {
     private val _registration = MutableStateFlow<Registration>(Registration.None)
     val registration: StateFlow<Registration> = _registration.asStateFlow()
 
-    var isDebugModeEnabled: Boolean = BuildConfig.DEBUG
-
     fun getCore(): Core =
         core ?: throw IllegalStateException("Linphone Core não foi inicializado. Chame start() primeiro.")
 
@@ -68,8 +65,8 @@ object LinphoneManager {
         if (core != null) return
         try {
             val factory = Factory.instance()
-            factory.enableLogCollection(if (isDebugModeEnabled) LogCollectionState.Enabled else LogCollectionState.Disabled)
-            factory.setDebugMode(isDebugModeEnabled, "RRP-Linphone")
+            // Log em arquivo só com o diagnóstico ligado (Ajustes → Diagnóstico).
+            com.rrpsystems.rrphone.core.diagnostics.Diagnostics.configureFactory(factory)
 
             // Sem linphonerc: a conta é do app (SettingsStore), como no desktop.
             // Com o arquivo, uma conta antiga voltava sozinha a cada abertura e

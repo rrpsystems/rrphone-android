@@ -106,6 +106,17 @@ object SettingsStore {
         get() = prefs.getString("instanceUuid", "") ?: ""
         set(value) = prefs.edit().putString("instanceUuid", value).apply()
 
+    // --- Diagnóstico ------------------------------------------------------------
+
+    /**
+     * Até quando o registro detalhado (log do liblinphone em arquivo) fica
+     * ligado, em epoch ms; 0 = desligado. Desliga sozinho para não ficar
+     * gravando para sempre num aparelho em que alguém esqueceu de desligar.
+     */
+    var diagnosticsUntil: Long
+        get() = prefs.getLong("diagnosticsUntil", 0L)
+        set(value) = prefs.edit().putLong("diagnosticsUntil", value).apply()
+
     // --- Contatos -----------------------------------------------------------
 
     /** Quando ligado, a lista do servidor apaga os contatos locais ao chegar. */
