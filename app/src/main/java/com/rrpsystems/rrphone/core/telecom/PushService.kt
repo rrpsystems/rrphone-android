@@ -17,11 +17,17 @@ import org.linphone.core.tools.firebase.FirebaseMessaging
  * - renovação (loc-key vazio, uma vez por dia): o REGISTER é o que mantém
  *   vivo o registro de 7 dias.
  *
- * Quem faz o trabalho é o serviço do próprio Linphone SDK, que entrega o
+ * Boa parte do trabalho é do serviço do próprio Linphone SDK, que entrega o
  * Call-ID ao Core (processPushNotification: renova os registros e espera a
  * chamada) e repassa um token novo do Firebase ao Core, que registra de novo
- * com o pn-prid atualizado. Sem este serviço declarado no manifesto, o push
- * chegava ao app e morria no FirebaseMessagingService padrão, sem REGISTER.
+ * com o pn-prid atualizado. O PushService do SDK (serviço em primeiro plano
+ * do tipo dataSync, com uma notificação própria em inglês, enquanto espera a
+ * chamada) fica de fora de propósito: o push de alta prioridade já dá ao app
+ * a janela de execução de que o REGISTER precisa (~4 s no Flexisip), e o
+ * Play exigiria declarar dataSync.
+ *
+ * Antes desta classe o push chegava ao app e morria no
+ * FirebaseMessagingService padrão, sem REGISTER.
  *
  * Com o processo morto, o Android sobe o app antes de chamar este serviço:
  * RRPApplication.onCreate já criou o Core e aplicou a conta salva.
@@ -34,11 +40,13 @@ class PushService : FirebaseMessaging() {
             " | call-id: ${data["call-id"].orEmpty()} | send-time: ${data["send-time"].orEmpty()}" +
             " | prioridade: ${remoteMessage.priority}/${remoteMessage.originalPriority}")
         super.onMessageReceived(remoteMessage)
-        // Garantia extra: se o Core não estava pronto quando o SDK olhou, o
-        // registro ainda assim é refeito assim que ele existir. O Core vive
-        // na thread principal.
+        // Com a conexão TLS ainda de pé, o SDK só manda um keep-alive e não
+        // registra de novo — e é o REGISTER que o Flexisip espera: renova o
+        // registro de 7 dias e libera o INVITE retido. Então força o REGISTER
+        // (ensureRegistered não basta: não faz nada com o registro "Ok"). O
+        // Core vive na thread principal.
         Handler(Looper.getMainLooper()).post {
-            LinphoneManager.coreOrNull()?.ensureRegistered()
+            LinphoneManager.coreOrNull()?.refreshRegisters()
         }
     }
 
