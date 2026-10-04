@@ -93,6 +93,17 @@ object SettingsStore {
         get() = prefs.getBoolean("agc", false)
         set(value) = prefs.edit().putBoolean("agc", value).apply()
 
+    /**
+     * Buffer de recepção do áudio (jitter buffer), em ms: quanto o app segura
+     * a voz que chega antes de tocar. Maior = mais atraso, mas a voz não
+     * "robotiza" quando a rede atrasa pacotes. Padrão 300: aqui qualidade vale
+     * mais que atraso, e nos testes de 04/10 (4G/Wi-Fi com picos de ~300 ms)
+     * 300 soou claramente melhor que 200. Ver LinphoneManager.setJitterBuffer.
+     */
+    var jitterBufferMs: Int
+        get() = prefs.getInt("jitterBufferMs", 300)
+        set(value) = prefs.edit().putInt("jitterBufferMs", value).apply()
+
     // --- Identidade do aparelho -------------------------------------------------
 
     /**

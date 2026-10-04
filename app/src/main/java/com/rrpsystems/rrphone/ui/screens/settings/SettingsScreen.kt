@@ -342,6 +342,33 @@ private fun AudioSection(profile: AccountProfile, onProfileChange: (AccountProfi
             LinphoneManager.setAudioProcessing(noise, echo, agc)
         }
         HorizontalDivider(color = Rrp.Border)
+        Text("Estabilidade da voz recebida", color = Rrp.TextPrimary, fontSize = 15.sp)
+        Hint("Quanto o app segura a voz que chega antes de tocar. Mais alto evita voz " +
+            "picotada ou robotizada em rede instável, com um pouco mais de atraso na conversa. Padrão: Máxima.")
+        var jitter by remember { mutableIntStateOf(SettingsStore.jitterBufferMs) }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+            listOf(60 to "Rápida", 200 to "Estável", 300 to "Máxima").forEach { (ms, label) ->
+                val selected = jitter == ms
+                OutlinedButton(
+                    onClick = {
+                        jitter = ms
+                        SettingsStore.jitterBufferMs = ms
+                        LinphoneManager.setJitterBuffer(ms)
+                    },
+                    modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),
+                    colors = if (selected) ButtonDefaults.outlinedButtonColors(
+                        containerColor = Rrp.AccentBlue.copy(alpha = 0.18f), contentColor = Rrp.AccentBlue
+                    ) else ButtonDefaults.outlinedButtonColors(contentColor = Rrp.TextSecondary),
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(label, fontSize = 14.sp)
+                        Text("$ms ms", fontSize = 11.sp)
+                    }
+                }
+            }
+        }
+        HorizontalDivider(color = Rrp.Border)
         Text("Codecs (prioridade e habilitação)", color = Rrp.TextPrimary, fontSize = 15.sp)
         codecs.forEachIndexed { index, codec ->
             Row(verticalAlignment = Alignment.CenterVertically) {

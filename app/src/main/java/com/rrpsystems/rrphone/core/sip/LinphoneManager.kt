@@ -330,6 +330,22 @@ object LinphoneManager {
         c.isAgcEnabled = automaticGainControl
     }
 
+    /**
+     * Jitter buffer adaptativo com piso: começa em [ms] e nunca encolhe
+     * abaixo de ~3/4 disso, mas ainda cresce até 600 ms num pico de rede.
+     * Sem o piso, o adaptativo do liblinphone desce até 20–40 ms numa rede
+     * calma e o primeiro atraso maior vira voz picotada/robotizada.
+     * Vale a partir da próxima chamada.
+     */
+    fun setJitterBuffer(ms: Int) {
+        val c = core ?: return
+        c.isAudioAdaptiveJittcompEnabled = true
+        c.audioJittcomp = ms
+        c.config.setInt("rtp", "jitter_buffer_min_size", if (ms <= 60) 40 else ms * 3 / 4)
+        c.config.setInt("rtp", "jitter_buffer_max_size", 600)
+        Log.i(TAG, "Jitter buffer: inicial ${ms} ms, mínimo ${c.config.getInt("rtp", "jitter_buffer_min_size", 0)} ms, máximo 600 ms")
+    }
+
     fun destroy() {
         core?.stop()
         core = null

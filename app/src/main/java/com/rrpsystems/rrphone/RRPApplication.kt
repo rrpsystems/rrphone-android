@@ -23,6 +23,7 @@ class RRPApplication : Application() {
 
         LinphoneManager.start(this)
         CallManager.init(this)
+        LinphoneManager.setJitterBuffer(SettingsStore.jitterBufferMs)
         LinphoneManager.setAudioProcessing(
             SettingsStore.noiseSuppression, SettingsStore.echoCancellation, SettingsStore.automaticGainControl
         )

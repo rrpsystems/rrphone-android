@@ -188,6 +188,7 @@ object Diagnostics {
             })
             appendLine("Não perturbe: ${SettingsStore.doNotDisturb} | siga-me: ${SettingsStore.forwardTarget.ifEmpty { "não" }}")
             appendLine("Áudio: eco ${SettingsStore.echoCancellation}, ruído ${SettingsStore.noiseSuppression}, ganho ${SettingsStore.automaticGainControl}")
+            appendLine("Jitter buffer: ${SettingsStore.jitterBufferMs} ms")
             appendLine()
             appendLine("Permissões: microfone ${perm(Manifest.permission.RECORD_AUDIO)}" +
                 (if (Build.VERSION.SDK_INT >= 33) ", notificações ${perm(Manifest.permission.POST_NOTIFICATIONS)}" else "") +
