@@ -148,6 +148,13 @@ object ContactsRepository {
 
     fun removeLocal(contact: Contact) = saveLocal(_local.value - contact)
 
+    /** "Sair da conta": agenda baixada e contatos próprios saem do aparelho. */
+    fun clearAll() {
+        setUrl("")
+        _local.value = emptyList()
+        localFile.delete()
+    }
+
     private fun saveLocal(contacts: List<Contact>) {
         _local.value = contacts
         writeJson(localFile, contacts)

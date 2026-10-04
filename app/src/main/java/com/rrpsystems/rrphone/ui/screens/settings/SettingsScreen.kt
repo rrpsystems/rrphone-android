@@ -567,7 +567,8 @@ private fun LogoutSection(onLoggedOut: () -> Unit) {
             onDismissRequest = { confirm = false },
             containerColor = Rrp.Panel,
             title = { Text("Sair da conta") },
-            text = { Text("O ramal deixa de receber chamadas neste aparelho até ser configurado de novo.") },
+            text = { Text("O ramal deixa de receber chamadas neste aparelho até ser configurado de novo. " +
+                "Histórico, contatos e diagnósticos guardados no aparelho também são apagados.") },
             confirmButton = {
                 TextButton(onClick = {
                     confirm = false
@@ -578,7 +579,11 @@ private fun LogoutSection(onLoggedOut: () -> Unit) {
                     scope.launch {
                         LinphoneManager.unregister()
                         SettingsStore.clearProfile()
-                        ContactsRepository.setUrl("")
+                        // Tudo o que o app guardou da conta sai junto, como diz a
+                        // política de privacidade (privacidade.html).
+                        ContactsRepository.clearAll()
+                        com.rrpsystems.rrphone.core.history.CallHistoryStore.clear()
+                        Diagnostics.clearAll()
                         onLoggedOut()
                     }
                 }) { Text("Sair", color = Rrp.Red) }

@@ -115,6 +115,12 @@ object Diagnostics {
 
     fun crashCount(): Int = crashDir.listFiles()?.size ?: 0
 
+    /** "Sair da conta": desliga o registro detalhado e apaga tudo o que foi gravado. */
+    fun clearAll() {
+        if (_enabled.value) setEnabled(false)
+        clear()
+    }
+
     /** Apaga logs e falhas gravados (o registro, se ligado, continua). */
     fun clear() {
         logsDir.listFiles()?.forEach { it.delete() }
