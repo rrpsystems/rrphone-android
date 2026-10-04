@@ -18,7 +18,7 @@ de caracteres são os do Console.
 > de mesa — e do RRP Softphone para Windows.
 >
 > **Chamadas**
-> • Receba ligações mesmo com o app fechado e a tela bloqueada
+> • Receba ligações mesmo com o app fechado e a tela bloqueada (com o PABX em nuvem RRPBX)
 > • Integração com o sistema: tela de chamada, Bluetooth e fone de ouvido
 > • Mudo, espera, teclado DTMF e alto-falante
 > • Chamada em espera: atenda uma segunda ligação e alterne entre as duas
@@ -40,7 +40,9 @@ de caracteres são os do Console.
 >
 > O app precisa de uma conta SIP (ramal) fornecida pela empresa responsável
 > pelo seu PABX. Ele não cria contas nem oferece serviço de telefonia por
-> conta própria.
+> conta própria. Funciona com qualquer PABX SIP; o recebimento de chamadas com
+> o app fechado (notificação push) está disponível para o RRPBX, o PABX em
+> nuvem da RRP Systems.
 >
 > Código aberto, sob a licença GNU GPL v3:
 > https://github.com/RRPSystems/rrphone-android
@@ -54,7 +56,7 @@ de caracteres são os do Console.
 
 **Imagens**
 - Ícone 512×512: `store-listing/icon-512.png` (gerado por `tools/make-icons.ps1`)
-- Banner 1024×500: a fazer
+- Banner 1024×500: `store-listing/feature-graphic.png` (gerado por `tools/make-banner.ps1`)
 - Capturas de tela (mín. 2): teclado, chamada em andamento, transferência,
   histórico, ajustes — de preferência de um celular real
 
