@@ -146,6 +146,8 @@ class MainActivity : ComponentActivity() {
         val wanted = buildList {
             add(Manifest.permission.RECORD_AUDIO)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) add(Manifest.permission.POST_NOTIFICATIONS)
+            // "Dispositivos próximos": fone e carro Bluetooth nas chamadas.
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) add(Manifest.permission.BLUETOOTH_CONNECT)
         }.filter { ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED }
         if (wanted.isNotEmpty()) permissions.launch(wanted.toTypedArray())
     }

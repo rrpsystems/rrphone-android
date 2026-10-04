@@ -37,8 +37,8 @@ android {
         targetSdk = 36
         // versionCode sobe a cada envio ao Play (o Play recusa repetido);
         // versionName é o que o usuário vê.
-        versionCode = 5
-        versionName = "1.0.4"
+        versionCode = 6
+        versionName = "1.0.5"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "RRP_PROFILE_KEY_HEX", "\"$profileKeyHex\"")

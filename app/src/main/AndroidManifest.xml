@@ -7,6 +7,9 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.MANAGE_OWN_CALLS" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Android 12+: sem ela o liblinphone não enxerga o fone/carro Bluetooth
+         (lista de dispositivos de áudio) e a rota Bluetooth não aparece. -->
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
     <!-- Tela de chamada recebida sobre o bloqueio; o Play libera para apps de
          chamada, mas pede a declaração no Console. -->
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
