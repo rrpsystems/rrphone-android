@@ -90,14 +90,18 @@ da empresa). Responder que não há criação de conta no app.
 SIP/TLS quando configurado). Obs.: se a conta usar UDP/TCP sem TLS, a
 sinalização com o PABX não é cifrada — declarar "sim" só se todas as conexões
 enviadas pela RRP forem cifradas; na dúvida, revisar com o jurídico.
-**O usuário pode pedir a exclusão dos dados?** Sim (Sair da conta / desinstalar;
-contato@rrpsystems.com.br para o servidor de push).
+**Contas:** o app não cria contas; login com contas criadas fora dele, por
+contas profissionais ou corporativas (o ramal vem do PBX da empresa).
+**O usuário pode pedir a exclusão dos dados?** Sim:
+https://rrpsystems.github.io/rrphone-desktop/exclusao-de-dados.html
+(Sair da conta / desinstalar; suporte@rrpsystems.com.br para o servidor de push
+e diagnósticos enviados).
 
 | Tipo de dado (Play) | Coletado | Compartilhado | Finalidade | Opcional? |
 |---|---|---|---|---|
-| Áudio — gravações de voz ou som | Não armazenado; transmitido em tempo real durante a chamada | Não | Funcionalidade do app | Não |
+| Áudio — gravações de voz ou som | Não declarado: é a própria ligação, entre o usuário e o PBX configurado, sem gravação | Não | — | — |
 | Identificadores do dispositivo ou outros IDs (token de push do Firebase) | Sim | Não (enviado ao servidor de push da própria RRP) | Funcionalidade do app | Sim (chave "Receber chamadas com o app fechado") |
-| Informações do app e desempenho — registros de falha e diagnóstico | Sim, só quando o usuário toca em Ajustes → Diagnóstico → Enviar e escolhe o app (e-mail para suporte@rrpsystems.com.br) | Não | Análise de problemas (suporte) | Sim |
+| Informações do app e desempenho — registros de falha e diagnóstico | Não declarado: o app não transmite; o usuário envia o arquivo por um app de sua escolha (menu de compartilhar) | Não | — | — |
 | Contatos | Não (a agenda vem do servidor da empresa e fica no aparelho) | Não | — | — |
 
 Observação: o Play considera "coleta" o que sai do aparelho para um servidor
